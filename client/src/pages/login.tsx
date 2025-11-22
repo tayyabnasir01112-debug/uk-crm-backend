@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
 import { apiUrl, API_BASE_URL } from "@/lib/api";
+import { ArrowLeft, Home } from "lucide-react";
 
 export default function Login() {
   const [, setLocation] = useLocation();
@@ -127,7 +128,18 @@ export default function Login() {
   };
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
+    <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4 relative">
+      <div className="absolute top-4 left-4">
+        <Button
+          variant="ghost"
+          onClick={() => setLocation("/")}
+          className="flex items-center gap-2"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          <Home className="h-4 w-4" />
+          Back to Home
+        </Button>
+      </div>
       <Card className="w-full max-w-md">
         <CardHeader className="space-y-1">
           <CardTitle className="text-2xl font-bold text-center">

@@ -55,8 +55,8 @@ export function AppSidebar() {
       // Clear all queries regardless of response
       queryClient.clear();
       
-      // Always redirect to login, even if logout request fails
-      window.location.replace("/login");
+      // Always redirect to home (landing page), even if logout request fails
+      window.location.replace("/");
     } catch (error) {
       console.error("Logout error:", error);
       // Clear cache and redirect on error
