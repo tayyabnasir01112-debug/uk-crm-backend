@@ -1,3 +1,4 @@
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -17,6 +18,16 @@ import invoiceImage from "@assets/generated_images/invoice_template_preview.png"
 import inventoryImage from "@assets/generated_images/inventory_management_illustration.png";
 
 export default function Landing() {
+  const [heroLoaded, setHeroLoaded] = useState(false);
+  const [imagesLoaded, setImagesLoaded] = useState<Record<number, boolean>>({});
+
+  // Preload hero image
+  useEffect(() => {
+    const img = new Image();
+    img.src = heroImage;
+    img.onload = () => setHeroLoaded(true);
+  }, []);
+
   const features = [
     {
       icon: FileText,
@@ -86,10 +97,16 @@ export default function Landing() {
         {/* Hero Background with Dark Overlay */}
         <div className="absolute inset-0 z-0">
           <div className="absolute inset-0 bg-gradient-to-b from-black/70 via-black/60 to-black/70 z-10" />
+          {!heroLoaded && (
+            <div className="absolute inset-0 bg-gradient-to-br from-slate-800 to-slate-900 animate-pulse" />
+          )}
           <img 
             src={heroImage} 
             alt="Professional workspace" 
-            className="w-full h-full object-cover"
+            className={`w-full h-full object-cover transition-opacity duration-500 ${heroLoaded ? 'opacity-100' : 'opacity-0'}`}
+            loading="eager"
+            decoding="async"
+            onLoad={() => setHeroLoaded(true)}
           />
         </div>
 
@@ -186,11 +203,19 @@ export default function Landing() {
                 </p>
               </div>
               <div className={index % 2 === 1 ? 'lg:order-1' : ''}>
-                <div className="rounded-lg overflow-hidden border border-card-border">
+                <div className="rounded-lg overflow-hidden border border-card-border relative bg-muted">
+                  {!imagesLoaded[index] && (
+                    <div className="absolute inset-0 bg-muted animate-pulse flex items-center justify-center">
+                      <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
+                    </div>
+                  )}
                   <img 
                     src={benefit.image} 
                     alt={benefit.title}
-                    className="w-full h-auto"
+                    className={`w-full h-auto transition-opacity duration-300 ${imagesLoaded[index] ? 'opacity-100' : 'opacity-0'}`}
+                    loading="lazy"
+                    decoding="async"
+                    onLoad={() => setImagesLoaded(prev => ({ ...prev, [index]: true }))}
                   />
                 </div>
               </div>

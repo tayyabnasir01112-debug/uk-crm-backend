@@ -26,25 +26,45 @@ export default function Dashboard() {
     }
   }, [isAuthenticated, isLoading, toast]);
 
-  const { data: quotations = [] } = useQuery<Quotation[]>({
+  // Load data with caching to avoid overwhelming cold backend
+  const { data: quotations = [], isLoading: quotationsLoading } = useQuery<Quotation[]>({
     queryKey: ["/api/quotations"],
+    staleTime: 5 * 60 * 1000, // Cache for 5 minutes
   });
 
-  const { data: invoices = [] } = useQuery<Invoice[]>({
+  const { data: invoices = [], isLoading: invoicesLoading } = useQuery<Invoice[]>({
     queryKey: ["/api/invoices"],
+    staleTime: 5 * 60 * 1000,
   });
 
-  const { data: deliveryChallans = [] } = useQuery<DeliveryChallan[]>({
+  const { data: deliveryChallans = [], isLoading: challansLoading } = useQuery<DeliveryChallan[]>({
     queryKey: ["/api/delivery-challans"],
+    staleTime: 5 * 60 * 1000,
   });
 
-  const { data: inventoryItems = [] } = useQuery<InventoryItem[]>({
+  const { data: inventoryItems = [], isLoading: inventoryLoading } = useQuery<InventoryItem[]>({
     queryKey: ["/api/inventory"],
+    staleTime: 5 * 60 * 1000,
   });
 
-  const { data: employees = [] } = useQuery<Employee[]>({
+  const { data: employees = [], isLoading: employeesLoading } = useQuery<Employee[]>({
     queryKey: ["/api/employees"],
+    staleTime: 5 * 60 * 1000,
   });
+
+  const isLoadingData = quotationsLoading || invoicesLoading || challansLoading || inventoryLoading || employeesLoading;
+
+  // Show loading state while data is being fetched
+  if (isLoadingData) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Loading dashboard data...</p>
+        </div>
+      </div>
+    );
+  }
 
   const stats = [
     {
