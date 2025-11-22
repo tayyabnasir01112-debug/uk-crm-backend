@@ -59,7 +59,12 @@ passport.use(
         }
 
         // Verify password
-        const isValid = await bcrypt.compare(password, user.password);
+        // Note: schema uses 'password' field, not 'passwordHash'
+        const userPassword = (user as any).password || (user as any).passwordHash;
+        if (!userPassword) {
+          return done(null, false, { message: "Invalid email or password" });
+        }
+        const isValid = await bcrypt.compare(password, userPassword);
         if (!isValid) {
           return done(null, false, { message: "Invalid email or password" });
         }
@@ -126,7 +131,20 @@ export async function setupAuth(app: Express) {
       });
     } catch (error: any) {
       console.error("Registration error:", error);
-      res.status(500).json({ message: error.message || "Registration failed" });
+      console.error("Error stack:", error.stack);
+      console.error("Error name:", error.name);
+      console.error("Error message:", error.message);
+      
+      // Better error messages
+      let errorMessage = "Registration failed";
+      if (error.message?.includes("Invalid URL")) {
+        errorMessage = "Database configuration error. Please contact support.";
+        console.error("DATABASE_URL might be invalid:", process.env.DATABASE_URL ? "Set" : "Not set");
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
+      res.status(500).json({ message: errorMessage });
     }
   });
 
