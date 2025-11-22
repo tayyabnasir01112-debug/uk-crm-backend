@@ -27,6 +27,15 @@ export function getSession() {
     dbUrl = dbUrl.slice(1, -1).trim();
   }
 
+  // Validate URL format
+  if (!dbUrl.startsWith('postgresql://') && !dbUrl.startsWith('postgres://')) {
+    throw new Error(`Invalid DATABASE_URL for session store. Got: ${dbUrl.substring(0, 50)}...`);
+  }
+
+  // Log the cleaned URL (without credentials)
+  const urlForLogging = dbUrl.replace(/:[^:@]+@/, ':****@');
+  console.log('🔐 Session store using DATABASE_URL:', urlForLogging.split('@')[1] || 'parsed');
+
   const sessionStore = new pgStore({
     conString: dbUrl,
     createTableIfMissing: true,
