@@ -20,11 +20,12 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Plus, Search, Eye, Download, Edit, Trash2, TruckIcon } from "lucide-react";
+import { Plus, Search, Eye, Download, Edit, Trash2, TruckIcon, X, FileText, FileCheck } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { isUnauthorizedError } from "@/lib/authUtils";
-import type { DeliveryChallan } from "@shared/schema";
+import type { DeliveryChallan, Quotation } from "@shared/schema";
 import { format } from "date-fns";
+import { useLocation } from "wouter";
 
 const challanSchema = z.object({
   customerName: z.string().min(1, "Customer name is required"),
@@ -32,10 +33,10 @@ const challanSchema = z.object({
   deliveryAddress: z.string().optional(),
   challanNumber: z.string().min(1, "Challan number is required"),
   items: z.array(z.object({
-    name: z.string(),
-    quantity: z.number(),
+    name: z.string().min(1, "Item name is required"),
+    quantity: z.number().min(0.01, "Quantity must be greater than 0"),
     unit: z.string(),
-  })),
+  })).min(1, "At least one item is required"),
   notes: z.string().optional(),
 });
 
@@ -44,8 +45,13 @@ type ChallanFormData = z.infer<typeof challanSchema>;
 export default function DeliveryChallans() {
   const { isAuthenticated, isLoading: authLoading } = useAuth();
   const { toast } = useToast();
+  const [, setLocation] = useLocation();
   const [searchTerm, setSearchTerm] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [viewDialogOpen, setViewDialogOpen] = useState(false);
+  const [selectedChallan, setSelectedChallan] = useState<DeliveryChallan | null>(null);
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [sourceQuotation, setSourceQuotation] = useState<Quotation | null>(null);
 
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
@@ -64,6 +70,24 @@ export default function DeliveryChallans() {
     queryKey: ["/api/delivery-challans"],
   });
 
+  const { data: quotations = [] } = useQuery<Quotation[]>({
+    queryKey: ["/api/quotations"],
+  });
+
+  // Check for quotation data from localStorage
+  useEffect(() => {
+    const quotationData = localStorage.getItem('createChallanFromQuotation');
+    if (quotationData) {
+      try {
+        const quotation = JSON.parse(quotationData);
+        setSourceQuotation(quotation);
+        localStorage.removeItem('createChallanFromQuotation');
+      } catch (error) {
+        console.error("Failed to parse quotation data:", error);
+      }
+    }
+  }, []);
+
   const form = useForm<ChallanFormData>({
     resolver: zodResolver(challanSchema),
     defaultValues: {
@@ -76,18 +100,59 @@ export default function DeliveryChallans() {
     },
   });
 
+  // Load from quotation if provided
+  useEffect(() => {
+    if (sourceQuotation) {
+      form.reset({
+        customerName: sourceQuotation.customerName,
+        customerAddress: sourceQuotation.customerAddress || "",
+        deliveryAddress: sourceQuotation.customerAddress || "",
+        challanNumber: `DC-${Date.now().toString().slice(-6)}`,
+        items: Array.isArray(sourceQuotation.items) ? sourceQuotation.items.map((item: any) => ({
+          name: item.name || "",
+          quantity: typeof item.quantity === 'number' ? item.quantity : parseFloat(item.quantity) || 0,
+          unit: "pcs",
+        })) : [{ name: "", quantity: 1, unit: "pcs" }],
+        notes: sourceQuotation.notes || "",
+      });
+      setDialogOpen(true);
+    }
+  }, [sourceQuotation, form]);
+
   const createMutation = useMutation({
     mutationFn: async (data: ChallanFormData) => {
-      return await apiRequest("POST", "/api/delivery-challans", data);
+      const response = await apiRequest("POST", "/api/delivery-challans", data);
+      return await response.json();
     },
-    onSuccess: () => {
+    onSuccess: async (challan) => {
       toast({
         title: "Success",
         description: "Delivery challan created successfully",
       });
+      
+      // Update source quotation status if created from quotation
+      if (sourceQuotation) {
+        try {
+          await apiRequest("PUT", `/api/quotations/${sourceQuotation.id}`, {
+            status: "sent"
+          });
+          queryClient.invalidateQueries({ queryKey: ["/api/quotations"] });
+        } catch (error) {
+          console.error("Failed to update quotation status:", error);
+        }
+      }
+
       queryClient.invalidateQueries({ queryKey: ["/api/delivery-challans"] });
       setDialogOpen(false);
-      form.reset();
+      setSourceQuotation(null);
+      form.reset({
+        customerName: "",
+        customerAddress: "",
+        deliveryAddress: "",
+        challanNumber: `DC-${Date.now().toString().slice(-6)}`,
+        items: [{ name: "", quantity: 1, unit: "pcs" }],
+        notes: "",
+      });
     },
     onError: (error: Error) => {
       if (isUnauthorizedError(error)) {
@@ -104,6 +169,40 @@ export default function DeliveryChallans() {
       toast({
         title: "Error",
         description: "Failed to create delivery challan",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: ChallanFormData }) => {
+      const response = await apiRequest("PUT", `/api/delivery-challans/${id}`, data);
+      return await response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Success",
+        description: "Delivery challan updated successfully",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/delivery-challans"] });
+      setIsEditMode(false);
+      setViewDialogOpen(false);
+    },
+    onError: (error: Error) => {
+      if (isUnauthorizedError(error)) {
+        toast({
+          title: "Unauthorized",
+          description: "You are logged out. Logging in again...",
+          variant: "destructive",
+        });
+        setTimeout(() => {
+          window.location.href = "/login";
+        }, 500);
+        return;
+      }
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update delivery challan",
         variant: "destructive",
       });
     },
@@ -157,6 +256,42 @@ export default function DeliveryChallans() {
     createMutation.mutate(data);
   };
 
+  const handleView = (challan: DeliveryChallan) => {
+    setSelectedChallan(challan);
+    setViewDialogOpen(true);
+    setIsEditMode(false);
+  };
+
+  const handleEdit = (challan: DeliveryChallan) => {
+    setSelectedChallan(challan);
+    setViewDialogOpen(true);
+    setIsEditMode(true);
+    form.reset({
+      customerName: challan.customerName,
+      customerAddress: challan.customerAddress || "",
+      deliveryAddress: challan.deliveryAddress || "",
+      challanNumber: challan.challanNumber,
+      items: Array.isArray(challan.items) ? challan.items.map((item: any) => ({
+        name: item.name || "",
+        quantity: typeof item.quantity === 'number' ? item.quantity : parseFloat(item.quantity) || 0,
+        unit: item.unit || "pcs",
+      })) : [{ name: "", quantity: 1, unit: "pcs" }],
+      notes: challan.notes || "",
+    });
+  };
+
+  const addItem = () => {
+    const currentItems = form.getValues("items");
+    form.setValue("items", [...currentItems, { name: "", quantity: 1, unit: "pcs" }]);
+  };
+
+  const removeItem = (index: number) => {
+    const currentItems = form.getValues("items");
+    if (currentItems.length > 1) {
+      form.setValue("items", currentItems.filter((_, i) => i !== index));
+    }
+  };
+
   if (authLoading || isLoading) {
     return (
       <div className="flex items-center justify-center h-screen">
@@ -175,17 +310,50 @@ export default function DeliveryChallans() {
           <h1 className="text-3xl font-bold mb-2">Delivery Challans</h1>
           <p className="text-muted-foreground">Track and manage delivery documents</p>
         </div>
-        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-          <DialogTrigger asChild>
-            <Button data-testid="button-create-challan">
-              <Plus className="h-4 w-4 mr-2" />
-              Create Challan
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle>Create New Delivery Challan</DialogTitle>
-            </DialogHeader>
+        <div className="flex gap-2">
+          {quotations.length > 0 && (
+            <Dialog>
+              <DialogTrigger asChild>
+                <Button variant="outline" data-testid="button-create-from-quotation">
+                  <FileText className="h-4 w-4 mr-2" />
+                  From Quotation
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Select Quotation</DialogTitle>
+                </DialogHeader>
+                <div className="max-h-96 overflow-y-auto">
+                  {quotations.filter(q => q.status === 'accepted' || q.status === 'draft' || q.status === 'sent').map((quotation) => (
+                    <Button
+                      key={quotation.id}
+                      variant="ghost"
+                      className="w-full justify-start"
+                      onClick={() => {
+                        setSourceQuotation(quotation);
+                        setDialogOpen(true);
+                      }}
+                    >
+                      {quotation.quotationNumber} - {quotation.customerName}
+                    </Button>
+                  ))}
+                </div>
+              </DialogContent>
+            </Dialog>
+          )}
+          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+            <DialogTrigger asChild>
+              <Button data-testid="button-create-challan">
+                <Plus className="h-4 w-4 mr-2" />
+                Create Challan
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>
+                  {sourceQuotation ? "Create Delivery Challan from Quotation" : "Create New Delivery Challan"}
+                </DialogTitle>
+              </DialogHeader>
             <Form {...form}>
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
                 <FormField
@@ -242,6 +410,82 @@ export default function DeliveryChallans() {
                     )}
                   />
                 </div>
+
+                {/* Items Section */}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <FormLabel>Items *</FormLabel>
+                    <Button type="button" variant="outline" size="sm" onClick={addItem}>
+                      <Plus className="h-4 w-4 mr-1" />
+                      Add Item
+                    </Button>
+                  </div>
+                  {form.watch("items").map((item, index) => (
+                    <div key={index} className="grid grid-cols-12 gap-2 items-end p-2 border rounded">
+                      <FormField
+                        control={form.control}
+                        name={`items.${index}.name`}
+                        render={({ field }) => (
+                          <FormItem className="col-span-5">
+                            <FormLabel className="text-xs">Item Name</FormLabel>
+                            <FormControl>
+                              <Input placeholder="Item name" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name={`items.${index}.quantity`}
+                        render={({ field }) => (
+                          <FormItem className="col-span-3">
+                            <FormLabel className="text-xs">Quantity</FormLabel>
+                            <FormControl>
+                              <Input
+                                type="number"
+                                step="0.01"
+                                min="0"
+                                {...field}
+                                onChange={(e) => {
+                                  const val = parseFloat(e.target.value) || 0;
+                                  field.onChange(val);
+                                }}
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name={`items.${index}.unit`}
+                        render={({ field }) => (
+                          <FormItem className="col-span-2">
+                            <FormLabel className="text-xs">Unit</FormLabel>
+                            <FormControl>
+                              <Input placeholder="pcs" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <div className="col-span-2 flex justify-end">
+                        {form.watch("items").length > 1 && (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => removeItem(index)}
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
                 <FormField
                   control={form.control}
                   name="notes"
@@ -256,7 +500,10 @@ export default function DeliveryChallans() {
                   )}
                 />
                 <div className="flex justify-end gap-2 pt-4">
-                  <Button type="button" variant="outline" onClick={() => setDialogOpen(false)} data-testid="button-cancel">
+                  <Button type="button" variant="outline" onClick={() => {
+                    setDialogOpen(false);
+                    setSourceQuotation(null);
+                  }} data-testid="button-cancel">
                     Cancel
                   </Button>
                   <Button type="submit" disabled={createMutation.isPending} data-testid="button-submit">
@@ -267,6 +514,7 @@ export default function DeliveryChallans() {
             </Form>
           </DialogContent>
         </Dialog>
+        </div>
       </div>
 
       <Card className="p-6">
@@ -308,13 +556,30 @@ export default function DeliveryChallans() {
                     <TableCell>{format(new Date(challan.createdAt!), "dd MMM yyyy")}</TableCell>
                     <TableCell className="text-right">
                       <div className="flex items-center justify-end gap-2">
-                        <Button variant="ghost" size="icon" data-testid={`button-view-${challan.id}`}>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleView(challan)}
+                          data-testid={`button-view-${challan.id}`}
+                          title="View"
+                        >
                           <Eye className="h-4 w-4" />
                         </Button>
-                        <Button variant="ghost" size="icon" data-testid={`button-download-${challan.id}`}>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          data-testid={`button-download-${challan.id}`}
+                          title="Download"
+                        >
                           <Download className="h-4 w-4" />
                         </Button>
-                        <Button variant="ghost" size="icon" data-testid={`button-edit-${challan.id}`}>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleEdit(challan)}
+                          data-testid={`button-edit-${challan.id}`}
+                          title="Edit"
+                        >
                           <Edit className="h-4 w-4" />
                         </Button>
                         <Button
@@ -348,6 +613,256 @@ export default function DeliveryChallans() {
           </div>
         )}
       </Card>
+
+      {/* View/Edit Dialog */}
+      <Dialog open={viewDialogOpen} onOpenChange={setViewDialogOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{isEditMode ? "Edit Delivery Challan" : "View Delivery Challan"}</DialogTitle>
+          </DialogHeader>
+          {selectedChallan && !isEditMode && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Challan Number</p>
+                  <p className="text-lg font-semibold">{selectedChallan.challanNumber}</p>
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Status</p>
+                  <Badge variant={getStatusBadgeVariant(selectedChallan.status!)} className="capitalize">
+                    {selectedChallan.status}
+                  </Badge>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Customer Name</p>
+                  <p>{selectedChallan.customerName}</p>
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Customer Address</p>
+                  <p>{selectedChallan.customerAddress || "N/A"}</p>
+                </div>
+              </div>
+              {selectedChallan.deliveryAddress && (
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Delivery Address</p>
+                  <p>{selectedChallan.deliveryAddress}</p>
+                </div>
+              )}
+              {Array.isArray(selectedChallan.items) && selectedChallan.items.length > 0 && (
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground mb-2">Items</p>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Item</TableHead>
+                        <TableHead>Quantity</TableHead>
+                        <TableHead>Unit</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {selectedChallan.items.map((item: any, index: number) => (
+                        <TableRow key={index}>
+                          <TableCell>{item.name || "N/A"}</TableCell>
+                          <TableCell>{item.quantity || 0}</TableCell>
+                          <TableCell>{item.unit || "pcs"}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+              {selectedChallan.notes && (
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Notes</p>
+                  <p className="whitespace-pre-wrap">{selectedChallan.notes}</p>
+                </div>
+              )}
+              <div className="flex justify-between items-center pt-4 border-t">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    localStorage.setItem('createInvoiceFromChallan', JSON.stringify(selectedChallan));
+                    setViewDialogOpen(false);
+                    setLocation('/invoices');
+                  }}
+                >
+                  <FileCheck className="h-4 w-4 mr-2" />
+                  Create Invoice
+                </Button>
+                <div className="flex gap-2">
+                  <Button variant="outline" onClick={() => setViewDialogOpen(false)}>
+                    Close
+                  </Button>
+                  <Button onClick={() => handleEdit(selectedChallan)}>
+                    <Edit className="h-4 w-4 mr-2" />
+                    Edit
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
+          {selectedChallan && isEditMode && (
+            <Form {...form}>
+              <form onSubmit={form.handleSubmit((data) => {
+                if (selectedChallan) {
+                  updateMutation.mutate({ id: selectedChallan.id, data });
+                }
+              })} className="space-y-4">
+                <FormField
+                  control={form.control}
+                  name="challanNumber"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Challan Number</FormLabel>
+                      <FormControl>
+                        <Input {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="customerName"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Customer Name</FormLabel>
+                      <FormControl>
+                        <Input {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <div className="grid grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="customerAddress"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Customer Address</FormLabel>
+                        <FormControl>
+                          <Input {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="deliveryAddress"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Delivery Address</FormLabel>
+                        <FormControl>
+                          <Input {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <FormLabel>Items *</FormLabel>
+                    <Button type="button" variant="outline" size="sm" onClick={addItem}>
+                      <Plus className="h-4 w-4 mr-1" />
+                      Add Item
+                    </Button>
+                  </div>
+                  {form.watch("items").map((item, index) => (
+                    <div key={index} className="grid grid-cols-12 gap-2 items-end p-2 border rounded">
+                      <FormField
+                        control={form.control}
+                        name={`items.${index}.name`}
+                        render={({ field }) => (
+                          <FormItem className="col-span-5">
+                            <FormLabel className="text-xs">Item Name</FormLabel>
+                            <FormControl>
+                              <Input {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name={`items.${index}.quantity`}
+                        render={({ field }) => (
+                          <FormItem className="col-span-3">
+                            <FormLabel className="text-xs">Quantity</FormLabel>
+                            <FormControl>
+                              <Input
+                                type="number"
+                                step="0.01"
+                                min="0"
+                                {...field}
+                                onChange={(e) => {
+                                  const val = parseFloat(e.target.value) || 0;
+                                  field.onChange(val);
+                                }}
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name={`items.${index}.unit`}
+                        render={({ field }) => (
+                          <FormItem className="col-span-2">
+                            <FormLabel className="text-xs">Unit</FormLabel>
+                            <FormControl>
+                              <Input {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <div className="col-span-2 flex justify-end">
+                        {form.watch("items").length > 1 && (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => removeItem(index)}
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <FormField
+                  control={form.control}
+                  name="notes"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Notes</FormLabel>
+                      <FormControl>
+                        <Textarea {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <div className="flex justify-end gap-2 pt-4">
+                  <Button type="button" variant="outline" onClick={() => setIsEditMode(false)}>
+                    Cancel
+                  </Button>
+                  <Button type="submit" disabled={updateMutation.isPending}>
+                    {updateMutation.isPending ? "Updating..." : "Update Challan"}
+                  </Button>
+                </div>
+              </form>
+            </Form>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

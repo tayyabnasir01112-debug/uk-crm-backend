@@ -20,11 +20,12 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Plus, Search, Eye, Download, Edit, Trash2, X } from "lucide-react";
+import { Plus, Search, Eye, Download, Edit, Trash2, X, FileCheck, TruckIcon } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { isUnauthorizedError } from "@/lib/authUtils";
 import type { Quotation } from "@shared/schema";
 import { format } from "date-fns";
+import { useLocation } from "wouter";
 
 const quotationSchema = z.object({
   customerName: z.string().min(1, "Customer name is required"),
@@ -49,6 +50,7 @@ type QuotationFormData = z.infer<typeof quotationSchema>;
 export default function Quotations() {
   const { isAuthenticated, isLoading: authLoading } = useAuth();
   const { toast } = useToast();
+  const [, setLocation] = useLocation();
   const [searchTerm, setSearchTerm] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [viewDialogOpen, setViewDialogOpen] = useState(false);
@@ -594,14 +596,42 @@ export default function Quotations() {
                   <p className="whitespace-pre-wrap">{selectedQuotation.notes}</p>
                 </div>
               )}
-              <div className="flex justify-end gap-2 pt-4">
-                <Button variant="outline" onClick={() => setViewDialogOpen(false)}>
-                  Close
-                </Button>
-                <Button onClick={() => handleEdit(selectedQuotation)}>
-                  <Edit className="h-4 w-4 mr-2" />
-                  Edit
-                </Button>
+              <div className="flex justify-between items-center pt-4 border-t">
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      // Navigate to invoices page with quotation data
+                      localStorage.setItem('createInvoiceFromQuotation', JSON.stringify(selectedQuotation));
+                      setViewDialogOpen(false);
+                      setLocation('/invoices');
+                    }}
+                  >
+                    <FileCheck className="h-4 w-4 mr-2" />
+                    Create Invoice
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      // Navigate to delivery challans page with quotation data
+                      localStorage.setItem('createChallanFromQuotation', JSON.stringify(selectedQuotation));
+                      setViewDialogOpen(false);
+                      setLocation('/delivery-challans');
+                    }}
+                  >
+                    <TruckIcon className="h-4 w-4 mr-2" />
+                    Create Delivery Challan
+                  </Button>
+                </div>
+                <div className="flex gap-2">
+                  <Button variant="outline" onClick={() => setViewDialogOpen(false)}>
+                    Close
+                  </Button>
+                  <Button onClick={() => handleEdit(selectedQuotation)}>
+                    <Edit className="h-4 w-4 mr-2" />
+                    Edit
+                  </Button>
+                </div>
               </div>
             </div>
           )}

@@ -53,14 +53,17 @@ export interface IStorage {
   
   getQuotations(userId: string): Promise<Quotation[]>;
   createQuotation(quotation: InsertQuotation): Promise<Quotation>;
+  updateQuotation(id: string, quotation: Partial<InsertQuotation>): Promise<Quotation | undefined>;
   deleteQuotation(id: string): Promise<void>;
   
   getInvoices(userId: string): Promise<Invoice[]>;
   createInvoice(invoice: InsertInvoice): Promise<Invoice>;
+  updateInvoice(id: string, invoice: Partial<InsertInvoice>): Promise<Invoice | undefined>;
   deleteInvoice(id: string): Promise<void>;
   
   getDeliveryChallans(userId: string): Promise<DeliveryChallan[]>;
   createDeliveryChallan(challan: InsertDeliveryChallan): Promise<DeliveryChallan>;
+  updateDeliveryChallan(id: string, challan: Partial<InsertDeliveryChallan>): Promise<DeliveryChallan | undefined>;
   deleteDeliveryChallan(id: string): Promise<void>;
   
   getEmployees(userId: string): Promise<Employee[]>;
@@ -181,6 +184,18 @@ export class DatabaseStorage implements IStorage {
     return quotation;
   }
 
+  async updateQuotation(id: string, quotationData: Partial<InsertQuotation>): Promise<Quotation | undefined> {
+    const [quotation] = await db
+      .update(quotations)
+      .set({
+        ...quotationData,
+        updatedAt: new Date(),
+      })
+      .where(eq(quotations.id, id))
+      .returning();
+    return quotation;
+  }
+
   async deleteQuotation(id: string): Promise<void> {
     await db.delete(quotations).where(eq(quotations.id, id));
   }
@@ -197,6 +212,18 @@ export class DatabaseStorage implements IStorage {
     return invoice;
   }
 
+  async updateInvoice(id: string, invoiceData: Partial<InsertInvoice>): Promise<Invoice | undefined> {
+    const [invoice] = await db
+      .update(invoices)
+      .set({
+        ...invoiceData,
+        updatedAt: new Date(),
+      })
+      .where(eq(invoices.id, id))
+      .returning();
+    return invoice;
+  }
+
   async deleteInvoice(id: string): Promise<void> {
     await db.delete(invoices).where(eq(invoices.id, id));
   }
@@ -209,6 +236,18 @@ export class DatabaseStorage implements IStorage {
     const [challan] = await db
       .insert(deliveryChallans)
       .values(challanData)
+      .returning();
+    return challan;
+  }
+
+  async updateDeliveryChallan(id: string, challanData: Partial<InsertDeliveryChallan>): Promise<DeliveryChallan | undefined> {
+    const [challan] = await db
+      .update(deliveryChallans)
+      .set({
+        ...challanData,
+        updatedAt: new Date(),
+      })
+      .where(eq(deliveryChallans.id, id))
       .returning();
     return challan;
   }

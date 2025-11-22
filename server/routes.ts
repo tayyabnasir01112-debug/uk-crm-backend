@@ -124,6 +124,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.put('/api/quotations/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const validatedData = insertQuotationSchema.partial().parse(req.body);
+      const quotation = await storage.updateQuotation(req.params.id, validatedData);
+      if (!quotation) {
+        return res.status(404).json({ message: "Quotation not found" });
+      }
+      res.json(quotation);
+    } catch (error) {
+      console.error("Error updating quotation:", error);
+      res.status(500).json({ message: "Failed to update quotation" });
+    }
+  });
+
   app.delete('/api/quotations/:id', isAuthenticated, async (req: any, res) => {
     try {
       await storage.deleteQuotation(req.params.id);
@@ -160,6 +174,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.put('/api/invoices/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const validatedData = insertInvoiceSchema.partial().parse(req.body);
+      const invoice = await storage.updateInvoice(req.params.id, validatedData);
+      if (!invoice) {
+        return res.status(404).json({ message: "Invoice not found" });
+      }
+      res.json(invoice);
+    } catch (error) {
+      console.error("Error updating invoice:", error);
+      res.status(500).json({ message: "Failed to update invoice" });
+    }
+  });
+
   app.delete('/api/invoices/:id', isAuthenticated, async (req: any, res) => {
     try {
       await storage.deleteInvoice(req.params.id);
@@ -193,6 +221,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error creating delivery challan:", error);
       res.status(500).json({ message: "Failed to create delivery challan" });
+    }
+  });
+
+  app.put('/api/delivery-challans/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const validatedData = insertDeliveryChallanSchema.partial().parse(req.body);
+      const challan = await storage.updateDeliveryChallan(req.params.id, validatedData);
+      if (!challan) {
+        return res.status(404).json({ message: "Delivery challan not found" });
+      }
+      res.json(challan);
+    } catch (error) {
+      console.error("Error updating delivery challan:", error);
+      res.status(500).json({ message: "Failed to update delivery challan" });
     }
   });
 

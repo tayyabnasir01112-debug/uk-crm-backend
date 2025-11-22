@@ -20,10 +20,10 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Plus, Search, Eye, Download, Edit, Trash2, FileCheck } from "lucide-react";
+import { Plus, Search, Eye, Download, Edit, Trash2, X, FileCheck, FileText, TruckIcon } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { isUnauthorizedError } from "@/lib/authUtils";
-import type { Invoice } from "@shared/schema";
+import type { Invoice, Quotation, DeliveryChallan } from "@shared/schema";
 import { format } from "date-fns";
 
 const invoiceSchema = z.object({
@@ -32,11 +32,11 @@ const invoiceSchema = z.object({
   customerAddress: z.string().optional(),
   invoiceNumber: z.string().min(1, "Invoice number is required"),
   items: z.array(z.object({
-    name: z.string(),
-    quantity: z.number(),
-    unitPrice: z.number(),
+    name: z.string().min(1, "Item name is required"),
+    quantity: z.number().min(0.01, "Quantity must be greater than 0"),
+    unitPrice: z.number().min(0, "Unit price must be 0 or greater"),
     total: z.number(),
-  })),
+  })).min(1, "At least one item is required"),
   subtotal: z.number(),
   taxRate: z.number(),
   taxAmount: z.number(),
@@ -51,6 +51,11 @@ export default function Invoices() {
   const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [viewDialogOpen, setViewDialogOpen] = useState(false);
+  const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [sourceQuotation, setSourceQuotation] = useState<Quotation | null>(null);
+  const [sourceChallan, setSourceChallan] = useState<DeliveryChallan | null>(null);
 
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
@@ -69,6 +74,40 @@ export default function Invoices() {
     queryKey: ["/api/invoices"],
   });
 
+  const { data: quotations = [] } = useQuery<Quotation[]>({
+    queryKey: ["/api/quotations"],
+  });
+
+  const { data: challans = [] } = useQuery<DeliveryChallan[]>({
+    queryKey: ["/api/delivery-challans"],
+  });
+
+  // Check for quotation or challan data from localStorage
+  useEffect(() => {
+    const quotationData = localStorage.getItem('createInvoiceFromQuotation');
+    const challanData = localStorage.getItem('createInvoiceFromChallan');
+    
+    if (quotationData) {
+      try {
+        const quotation = JSON.parse(quotationData);
+        setSourceQuotation(quotation);
+        localStorage.removeItem('createInvoiceFromQuotation');
+      } catch (error) {
+        console.error("Failed to parse quotation data:", error);
+      }
+    }
+    
+    if (challanData) {
+      try {
+        const challan = JSON.parse(challanData);
+        setSourceChallan(challan);
+        localStorage.removeItem('createInvoiceFromChallan');
+      } catch (error) {
+        console.error("Failed to parse challan data:", error);
+      }
+    }
+  }, []);
+
   const form = useForm<InvoiceFormData>({
     resolver: zodResolver(invoiceSchema),
     defaultValues: {
@@ -85,18 +124,131 @@ export default function Invoices() {
     },
   });
 
+  // Watch items and taxRate to auto-calculate totals
+  const items = form.watch("items");
+  const taxRate = form.watch("taxRate");
+
+  useEffect(() => {
+    // Calculate item totals
+    const updatedItems = items.map(item => ({
+      ...item,
+      total: item.quantity * item.unitPrice,
+    }));
+    
+    // Update form with calculated totals
+    updatedItems.forEach((item, index) => {
+      form.setValue(`items.${index}.total`, item.total);
+    });
+
+    // Calculate subtotal
+    const subtotal = updatedItems.reduce((sum, item) => sum + item.total, 0);
+    form.setValue("subtotal", subtotal);
+
+    // Calculate tax and total
+    const taxAmount = subtotal * (taxRate / 100);
+    const total = subtotal + taxAmount;
+    form.setValue("taxAmount", taxAmount);
+    form.setValue("total", total);
+  }, [items, taxRate, form]);
+
+  // Load from quotation or challan if provided
+  useEffect(() => {
+    if (sourceQuotation) {
+      form.reset({
+        customerName: sourceQuotation.customerName,
+        customerEmail: sourceQuotation.customerEmail || "",
+        customerAddress: sourceQuotation.customerAddress || "",
+        invoiceNumber: `INV-${Date.now().toString().slice(-6)}`,
+        items: Array.isArray(sourceQuotation.items) ? sourceQuotation.items.map((item: any) => ({
+          name: item.name || "",
+          quantity: typeof item.quantity === 'number' ? item.quantity : parseFloat(item.quantity) || 0,
+          unitPrice: typeof item.unitPrice === 'number' ? item.unitPrice : parseFloat(item.unitPrice) || 0,
+          total: typeof item.total === 'number' ? item.total : parseFloat(item.total) || 0,
+        })) : [{ name: "", quantity: 1, unitPrice: 0, total: 0 }],
+        subtotal: typeof sourceQuotation.subtotal === 'string' ? parseFloat(sourceQuotation.subtotal) : sourceQuotation.subtotal || 0,
+        taxRate: typeof sourceQuotation.taxRate === 'string' ? parseFloat(sourceQuotation.taxRate) : sourceQuotation.taxRate || 20,
+        taxAmount: typeof sourceQuotation.taxAmount === 'string' ? parseFloat(sourceQuotation.taxAmount) : sourceQuotation.taxAmount || 0,
+        total: typeof sourceQuotation.total === 'string' ? parseFloat(sourceQuotation.total) : sourceQuotation.total || 0,
+        notes: sourceQuotation.notes || "",
+      });
+      setDialogOpen(true);
+    }
+  }, [sourceQuotation, form]);
+
+  useEffect(() => {
+    if (sourceChallan) {
+      form.reset({
+        customerName: sourceChallan.customerName,
+        customerEmail: "",
+        customerAddress: sourceChallan.customerAddress || "",
+        invoiceNumber: `INV-${Date.now().toString().slice(-6)}`,
+        items: Array.isArray(sourceChallan.items) ? sourceChallan.items.map((item: any) => ({
+          name: item.name || "",
+          quantity: typeof item.quantity === 'number' ? item.quantity : parseFloat(item.quantity) || 0,
+          unitPrice: 0, // Challans don't have prices
+          total: 0,
+        })) : [{ name: "", quantity: 1, unitPrice: 0, total: 0 }],
+        subtotal: 0,
+        taxRate: 20,
+        taxAmount: 0,
+        total: 0,
+        notes: sourceChallan.notes || "",
+      });
+      setDialogOpen(true);
+    }
+  }, [sourceChallan, form]);
+
   const createMutation = useMutation({
     mutationFn: async (data: InvoiceFormData) => {
-      return await apiRequest("POST", "/api/invoices", data);
+      const response = await apiRequest("POST", "/api/invoices", data);
+      return await response.json();
     },
-    onSuccess: () => {
+    onSuccess: async (invoice) => {
       toast({
         title: "Success",
         description: "Invoice created successfully",
       });
+      
+      // Update source quotation status if created from quotation
+      if (sourceQuotation) {
+        try {
+          await apiRequest("PUT", `/api/quotations/${sourceQuotation.id}`, {
+            status: "accepted"
+          });
+          queryClient.invalidateQueries({ queryKey: ["/api/quotations"] });
+        } catch (error) {
+          console.error("Failed to update quotation status:", error);
+        }
+      }
+
+      // Update source challan status if created from challan
+      if (sourceChallan) {
+        try {
+          await apiRequest("PUT", `/api/delivery-challans/${sourceChallan.id}`, {
+            status: "delivered"
+          });
+          queryClient.invalidateQueries({ queryKey: ["/api/delivery-challans"] });
+        } catch (error) {
+          console.error("Failed to update challan status:", error);
+        }
+      }
+
       queryClient.invalidateQueries({ queryKey: ["/api/invoices"] });
       setDialogOpen(false);
-      form.reset();
+      setSourceQuotation(null);
+      setSourceChallan(null);
+      form.reset({
+        customerName: "",
+        customerEmail: "",
+        customerAddress: "",
+        invoiceNumber: `INV-${Date.now().toString().slice(-6)}`,
+        items: [{ name: "", quantity: 1, unitPrice: 0, total: 0 }],
+        subtotal: 0,
+        taxRate: 20,
+        taxAmount: 0,
+        total: 0,
+        notes: "",
+      });
     },
     onError: (error: Error) => {
       if (isUnauthorizedError(error)) {
@@ -112,7 +264,41 @@ export default function Invoices() {
       }
       toast({
         title: "Error",
-        description: "Failed to create invoice",
+        description: error.message || "Failed to create invoice",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: InvoiceFormData }) => {
+      const response = await apiRequest("PUT", `/api/invoices/${id}`, data);
+      return await response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Success",
+        description: "Invoice updated successfully",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/invoices"] });
+      setIsEditMode(false);
+      setViewDialogOpen(false);
+    },
+    onError: (error: Error) => {
+      if (isUnauthorizedError(error)) {
+        toast({
+          title: "Unauthorized",
+          description: "You are logged out. Logging in again...",
+          variant: "destructive",
+        });
+        setTimeout(() => {
+          window.location.href = "/login";
+        }, 500);
+        return;
+      }
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update invoice",
         variant: "destructive",
       });
     },
@@ -167,6 +353,64 @@ export default function Invoices() {
     createMutation.mutate(data);
   };
 
+  const handleView = (invoice: Invoice) => {
+    setSelectedInvoice(invoice);
+    setViewDialogOpen(true);
+    setIsEditMode(false);
+  };
+
+  const handleEdit = (invoice: Invoice) => {
+    setSelectedInvoice(invoice);
+    setViewDialogOpen(true);
+    setIsEditMode(true);
+    form.reset({
+      customerName: invoice.customerName,
+      customerEmail: invoice.customerEmail || "",
+      customerAddress: invoice.customerAddress || "",
+      invoiceNumber: invoice.invoiceNumber,
+      items: Array.isArray(invoice.items) ? invoice.items.map((item: any) => ({
+        name: item.name || "",
+        quantity: typeof item.quantity === 'number' ? item.quantity : parseFloat(item.quantity) || 0,
+        unitPrice: typeof item.unitPrice === 'number' ? item.unitPrice : parseFloat(item.unitPrice) || 0,
+        total: typeof item.total === 'number' ? item.total : parseFloat(item.total) || 0,
+      })) : [{ name: "", quantity: 1, unitPrice: 0, total: 0 }],
+      subtotal: typeof invoice.subtotal === 'string' ? parseFloat(invoice.subtotal) : invoice.subtotal || 0,
+      taxRate: typeof invoice.taxRate === 'string' ? parseFloat(invoice.taxRate) : invoice.taxRate || 20,
+      taxAmount: typeof invoice.taxAmount === 'string' ? parseFloat(invoice.taxAmount) : invoice.taxAmount || 0,
+      total: typeof invoice.total === 'string' ? parseFloat(invoice.total) : invoice.total || 0,
+      notes: invoice.notes || "",
+    });
+  };
+
+  const addItem = () => {
+    const currentItems = form.getValues("items");
+    form.setValue("items", [...currentItems, { name: "", quantity: 1, unitPrice: 0, total: 0 }]);
+  };
+
+  const removeItem = (index: number) => {
+    const currentItems = form.getValues("items");
+    if (currentItems.length > 1) {
+      form.setValue("items", currentItems.filter((_, i) => i !== index));
+    }
+  };
+
+  const handleCreateFromQuotation = (quotation: Quotation) => {
+    setSourceQuotation(quotation);
+  };
+
+  const handleCreateFromChallan = (challan: DeliveryChallan) => {
+    setSourceChallan(challan);
+  };
+
+  const handleDownload = async (invoice: Invoice, format: 'pdf' | 'word' = 'pdf', includeHeader: boolean = true, includeFooter: boolean = true) => {
+    // TODO: Implement PDF/Word download with header/footer options
+    toast({
+      title: "Download",
+      description: `Downloading invoice as ${format.toUpperCase()}...`,
+    });
+    // This will be implemented with a backend endpoint
+  };
+
   if (authLoading || isLoading) {
     return (
       <div className="flex items-center justify-center h-screen">
@@ -185,45 +429,476 @@ export default function Invoices() {
           <h1 className="text-3xl font-bold mb-2">Invoices</h1>
           <p className="text-muted-foreground">Create and manage your business invoices</p>
         </div>
-        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-          <DialogTrigger asChild>
-            <Button data-testid="button-create-invoice">
-              <Plus className="h-4 w-4 mr-2" />
-              Create Invoice
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle>Create New Invoice</DialogTitle>
-            </DialogHeader>
+        <div className="flex gap-2">
+          {quotations.length > 0 && (
+            <Dialog>
+              <DialogTrigger asChild>
+                <Button variant="outline" data-testid="button-create-from-quotation">
+                  <FileText className="h-4 w-4 mr-2" />
+                  From Quotation
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Select Quotation</DialogTitle>
+                </DialogHeader>
+                <div className="max-h-96 overflow-y-auto">
+                  {quotations.filter(q => q.status === 'accepted' || q.status === 'draft').map((quotation) => (
+                    <Button
+                      key={quotation.id}
+                      variant="ghost"
+                      className="w-full justify-start"
+                      onClick={() => handleCreateFromQuotation(quotation)}
+                    >
+                      {quotation.quotationNumber} - {quotation.customerName}
+                    </Button>
+                  ))}
+                </div>
+              </DialogContent>
+            </Dialog>
+          )}
+          {challans.length > 0 && (
+            <Dialog>
+              <DialogTrigger asChild>
+                <Button variant="outline" data-testid="button-create-from-challan">
+                  <TruckIcon className="h-4 w-4 mr-2" />
+                  From Challan
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Select Delivery Challan</DialogTitle>
+                </DialogHeader>
+                <div className="max-h-96 overflow-y-auto">
+                  {challans.filter(c => c.status === 'delivered' || c.status === 'dispatched').map((challan) => (
+                    <Button
+                      key={challan.id}
+                      variant="ghost"
+                      className="w-full justify-start"
+                      onClick={() => handleCreateFromChallan(challan)}
+                    >
+                      {challan.challanNumber} - {challan.customerName}
+                    </Button>
+                  ))}
+                </div>
+              </DialogContent>
+            </Dialog>
+          )}
+          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+            <DialogTrigger asChild>
+              <Button data-testid="button-create-invoice">
+                <Plus className="h-4 w-4 mr-2" />
+                Create Invoice
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>
+                  {sourceQuotation ? "Create Invoice from Quotation" : sourceChallan ? "Create Invoice from Challan" : "Create New Invoice"}
+                </DialogTitle>
+              </DialogHeader>
+              <Form {...form}>
+                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="invoiceNumber"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Invoice Number</FormLabel>
+                          <FormControl>
+                            <Input {...field} data-testid="input-invoice-number" />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="customerName"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Customer Name *</FormLabel>
+                          <FormControl>
+                            <Input placeholder="Enter customer name" {...field} data-testid="input-customer-name" />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="customerEmail"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Customer Email</FormLabel>
+                          <FormControl>
+                            <Input type="email" placeholder="email@example.com" {...field} data-testid="input-customer-email" />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="customerAddress"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Customer Address</FormLabel>
+                          <FormControl>
+                            <Input placeholder="Address" {...field} data-testid="input-customer-address" />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+
+                  {/* Items Section */}
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <FormLabel>Items *</FormLabel>
+                      <Button type="button" variant="outline" size="sm" onClick={addItem}>
+                        <Plus className="h-4 w-4 mr-1" />
+                        Add Item
+                      </Button>
+                    </div>
+                    {form.watch("items").map((item, index) => (
+                      <div key={index} className="grid grid-cols-12 gap-2 items-end p-2 border rounded">
+                        <FormField
+                          control={form.control}
+                          name={`items.${index}.name`}
+                          render={({ field }) => (
+                            <FormItem className="col-span-4">
+                              <FormLabel className="text-xs">Item Name</FormLabel>
+                              <FormControl>
+                                <Input placeholder="Item name" {...field} />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        <FormField
+                          control={form.control}
+                          name={`items.${index}.quantity`}
+                          render={({ field }) => (
+                            <FormItem className="col-span-2">
+                              <FormLabel className="text-xs">Qty</FormLabel>
+                              <FormControl>
+                                <Input
+                                  type="number"
+                                  step="0.01"
+                                  min="0"
+                                  {...field}
+                                  onChange={(e) => {
+                                    const val = parseFloat(e.target.value) || 0;
+                                    field.onChange(val);
+                                  }}
+                                />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        <FormField
+                          control={form.control}
+                          name={`items.${index}.unitPrice`}
+                          render={({ field }) => (
+                            <FormItem className="col-span-2">
+                              <FormLabel className="text-xs">Unit Price</FormLabel>
+                              <FormControl>
+                                <Input
+                                  type="number"
+                                  step="0.01"
+                                  min="0"
+                                  {...field}
+                                  onChange={(e) => {
+                                    const val = parseFloat(e.target.value) || 0;
+                                    field.onChange(val);
+                                  }}
+                                />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        <FormItem className="col-span-2">
+                          <FormLabel className="text-xs">Total</FormLabel>
+                          <Input
+                            value={item.total.toFixed(2)}
+                            disabled
+                            className="bg-muted"
+                          />
+                        </FormItem>
+                        <div className="col-span-2 flex justify-end">
+                          {form.watch("items").length > 1 && (
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => removeItem(index)}
+                            >
+                              <X className="h-4 w-4" />
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-4 pt-4 border-t">
+                    <div className="space-y-2">
+                      <FormLabel>Subtotal</FormLabel>
+                      <Input
+                        value={`£${form.watch("subtotal").toFixed(2)}`}
+                        disabled
+                        className="bg-muted font-semibold"
+                      />
+                    </div>
+                    <FormField
+                      control={form.control}
+                      name="taxRate"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Tax Rate (%)</FormLabel>
+                          <FormControl>
+                            <Input
+                              type="number"
+                              step="0.01"
+                              min="0"
+                              {...field}
+                              onChange={(e) => {
+                                const val = parseFloat(e.target.value) || 0;
+                                field.onChange(val);
+                              }}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <div className="space-y-2">
+                      <FormLabel>Tax Amount</FormLabel>
+                      <Input
+                        value={`£${form.watch("taxAmount").toFixed(2)}`}
+                        disabled
+                        className="bg-muted"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="pt-2">
+                    <FormLabel>Total</FormLabel>
+                    <Input
+                      value={`£${form.watch("total").toFixed(2)}`}
+                      disabled
+                      className="bg-muted font-bold text-lg"
+                    />
+                  </div>
+
+                  <FormField
+                    control={form.control}
+                    name="notes"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Notes</FormLabel>
+                        <FormControl>
+                          <Textarea placeholder="Payment terms, additional notes..." {...field} data-testid="input-notes" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <div className="flex justify-end gap-2 pt-4">
+                    <Button type="button" variant="outline" onClick={() => {
+                      setDialogOpen(false);
+                      setSourceQuotation(null);
+                      setSourceChallan(null);
+                    }} data-testid="button-cancel">
+                      Cancel
+                    </Button>
+                    <Button type="submit" disabled={createMutation.isPending} data-testid="button-submit">
+                      {createMutation.isPending ? "Creating..." : "Create Invoice"}
+                    </Button>
+                  </div>
+                </form>
+              </Form>
+            </DialogContent>
+          </Dialog>
+        </div>
+      </div>
+
+      {/* View/Edit Dialog */}
+      <Dialog open={viewDialogOpen} onOpenChange={setViewDialogOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{isEditMode ? "Edit Invoice" : "View Invoice"}</DialogTitle>
+          </DialogHeader>
+          {selectedInvoice && !isEditMode && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Invoice Number</p>
+                  <p className="text-lg font-semibold">{selectedInvoice.invoiceNumber}</p>
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Status</p>
+                  <Badge variant={getStatusBadgeVariant(selectedInvoice.status!)} className="capitalize">
+                    {selectedInvoice.status}
+                  </Badge>
+                  {selectedInvoice.status === 'paid' && (
+                    <div className="mt-2 relative">
+                      <div className="absolute -rotate-12 bg-green-500 text-white px-4 py-2 rounded font-bold text-lg shadow-lg">
+                        PAID
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Customer Name</p>
+                  <p>{selectedInvoice.customerName}</p>
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Customer Email</p>
+                  <p>{selectedInvoice.customerEmail || "N/A"}</p>
+                </div>
+              </div>
+              {selectedInvoice.customerAddress && (
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Customer Address</p>
+                  <p>{selectedInvoice.customerAddress}</p>
+                </div>
+              )}
+              {Array.isArray(selectedInvoice.items) && selectedInvoice.items.length > 0 && (
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground mb-2">Items</p>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Item</TableHead>
+                        <TableHead>Quantity</TableHead>
+                        <TableHead>Unit Price</TableHead>
+                        <TableHead className="text-right">Total</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {selectedInvoice.items.map((item: any, index: number) => (
+                        <TableRow key={index}>
+                          <TableCell>{item.name || "N/A"}</TableCell>
+                          <TableCell>{item.quantity || 0}</TableCell>
+                          <TableCell>£{typeof item.unitPrice === 'number' ? item.unitPrice.toFixed(2) : parseFloat(item.unitPrice || 0).toFixed(2)}</TableCell>
+                          <TableCell className="text-right">£{typeof item.total === 'number' ? item.total.toFixed(2) : parseFloat(item.total || 0).toFixed(2)}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+              <div className="grid grid-cols-3 gap-4 pt-4 border-t">
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Subtotal</p>
+                  <p className="text-lg font-semibold">£{typeof selectedInvoice.subtotal === 'string' ? parseFloat(selectedInvoice.subtotal).toFixed(2) : selectedInvoice.subtotal?.toFixed(2) || "0.00"}</p>
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Tax Rate</p>
+                  <p>{typeof selectedInvoice.taxRate === 'string' ? parseFloat(selectedInvoice.taxRate) : selectedInvoice.taxRate || 0}%</p>
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Tax Amount</p>
+                  <p className="text-lg font-semibold">£{typeof selectedInvoice.taxAmount === 'string' ? parseFloat(selectedInvoice.taxAmount).toFixed(2) : selectedInvoice.taxAmount?.toFixed(2) || "0.00"}</p>
+                </div>
+              </div>
+              <div className="pt-2 border-t">
+                <p className="text-sm font-medium text-muted-foreground">Total</p>
+                <p className="text-2xl font-bold">£{typeof selectedInvoice.total === 'string' ? parseFloat(selectedInvoice.total).toFixed(2) : selectedInvoice.total?.toFixed(2) || "0.00"}</p>
+              </div>
+              {selectedInvoice.notes && (
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Notes</p>
+                  <p className="whitespace-pre-wrap">{selectedInvoice.notes}</p>
+                </div>
+              )}
+              <div className="flex justify-end gap-2 pt-4">
+                <Button variant="outline" onClick={() => setViewDialogOpen(false)}>
+                  Close
+                </Button>
+                <Button onClick={() => handleEdit(selectedInvoice)}>
+                  <Edit className="h-4 w-4 mr-2" />
+                  Edit
+                </Button>
+                <Dialog>
+                  <DialogTrigger asChild>
+                    <Button variant="outline">
+                      <Download className="h-4 w-4 mr-2" />
+                      Download
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Download Options</DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-4">
+                      <div>
+                        <FormLabel>Format</FormLabel>
+                        <div className="flex gap-2 mt-2">
+                          <Button variant="outline" onClick={() => handleDownload(selectedInvoice, 'pdf')}>PDF</Button>
+                          <Button variant="outline" onClick={() => handleDownload(selectedInvoice, 'word')}>Word</Button>
+                        </div>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <input type="checkbox" id="includeHeader" defaultChecked />
+                        <label htmlFor="includeHeader">Include Header</label>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <input type="checkbox" id="includeFooter" defaultChecked />
+                        <label htmlFor="includeFooter">Include Footer</label>
+                      </div>
+                    </div>
+                  </DialogContent>
+                </Dialog>
+              </div>
+            </div>
+          )}
+          {selectedInvoice && isEditMode && (
             <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-                <FormField
-                  control={form.control}
-                  name="invoiceNumber"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Invoice Number</FormLabel>
-                      <FormControl>
-                        <Input {...field} data-testid="input-invoice-number" />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="customerName"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Customer Name</FormLabel>
-                      <FormControl>
-                        <Input placeholder="Enter customer name" {...field} data-testid="input-customer-name" />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+              <form onSubmit={form.handleSubmit((data) => {
+                if (selectedInvoice) {
+                  updateMutation.mutate({ id: selectedInvoice.id, data });
+                }
+              })} className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="invoiceNumber"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Invoice Number</FormLabel>
+                        <FormControl>
+                          <Input {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="customerName"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Customer Name *</FormLabel>
+                        <FormControl>
+                          <Input {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
                 <div className="grid grid-cols-2 gap-4">
                   <FormField
                     control={form.control}
@@ -232,7 +907,7 @@ export default function Invoices() {
                       <FormItem>
                         <FormLabel>Customer Email</FormLabel>
                         <FormControl>
-                          <Input type="email" placeholder="email@example.com" {...field} data-testid="input-customer-email" />
+                          <Input type="email" {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -245,11 +920,149 @@ export default function Invoices() {
                       <FormItem>
                         <FormLabel>Customer Address</FormLabel>
                         <FormControl>
-                          <Input placeholder="Address" {...field} data-testid="input-customer-address" />
+                          <Input {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
                     )}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <FormLabel>Items *</FormLabel>
+                    <Button type="button" variant="outline" size="sm" onClick={addItem}>
+                      <Plus className="h-4 w-4 mr-1" />
+                      Add Item
+                    </Button>
+                  </div>
+                  {form.watch("items").map((item, index) => (
+                    <div key={index} className="grid grid-cols-12 gap-2 items-end p-2 border rounded">
+                      <FormField
+                        control={form.control}
+                        name={`items.${index}.name`}
+                        render={({ field }) => (
+                          <FormItem className="col-span-4">
+                            <FormLabel className="text-xs">Item Name</FormLabel>
+                            <FormControl>
+                              <Input {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name={`items.${index}.quantity`}
+                        render={({ field }) => (
+                          <FormItem className="col-span-2">
+                            <FormLabel className="text-xs">Qty</FormLabel>
+                            <FormControl>
+                              <Input
+                                type="number"
+                                step="0.01"
+                                min="0"
+                                {...field}
+                                onChange={(e) => {
+                                  const val = parseFloat(e.target.value) || 0;
+                                  field.onChange(val);
+                                }}
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name={`items.${index}.unitPrice`}
+                        render={({ field }) => (
+                          <FormItem className="col-span-2">
+                            <FormLabel className="text-xs">Unit Price</FormLabel>
+                            <FormControl>
+                              <Input
+                                type="number"
+                                step="0.01"
+                                min="0"
+                                {...field}
+                                onChange={(e) => {
+                                  const val = parseFloat(e.target.value) || 0;
+                                  field.onChange(val);
+                                }}
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormItem className="col-span-2">
+                        <FormLabel className="text-xs">Total</FormLabel>
+                        <Input
+                          value={item.total.toFixed(2)}
+                          disabled
+                          className="bg-muted"
+                        />
+                      </FormItem>
+                      <div className="col-span-2 flex justify-end">
+                        {form.watch("items").length > 1 && (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => removeItem(index)}
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <div className="grid grid-cols-3 gap-4 pt-4 border-t">
+                  <div className="space-y-2">
+                    <FormLabel>Subtotal</FormLabel>
+                    <Input
+                      value={`£${form.watch("subtotal").toFixed(2)}`}
+                      disabled
+                      className="bg-muted font-semibold"
+                    />
+                  </div>
+                  <FormField
+                    control={form.control}
+                    name="taxRate"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Tax Rate (%)</FormLabel>
+                        <FormControl>
+                          <Input
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            {...field}
+                            onChange={(e) => {
+                              const val = parseFloat(e.target.value) || 0;
+                              field.onChange(val);
+                            }}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <div className="space-y-2">
+                    <FormLabel>Tax Amount</FormLabel>
+                    <Input
+                      value={`£${form.watch("taxAmount").toFixed(2)}`}
+                      disabled
+                      className="bg-muted"
+                    />
+                  </div>
+                </div>
+                <div className="pt-2">
+                  <FormLabel>Total</FormLabel>
+                  <Input
+                    value={`£${form.watch("total").toFixed(2)}`}
+                    disabled
+                    className="bg-muted font-bold text-lg"
                   />
                 </div>
                 <FormField
@@ -259,25 +1072,25 @@ export default function Invoices() {
                     <FormItem>
                       <FormLabel>Notes</FormLabel>
                       <FormControl>
-                        <Textarea placeholder="Payment terms, additional notes..." {...field} data-testid="input-notes" />
+                        <Textarea {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
                 <div className="flex justify-end gap-2 pt-4">
-                  <Button type="button" variant="outline" onClick={() => setDialogOpen(false)} data-testid="button-cancel">
+                  <Button type="button" variant="outline" onClick={() => setIsEditMode(false)}>
                     Cancel
                   </Button>
-                  <Button type="submit" disabled={createMutation.isPending} data-testid="button-submit">
-                    {createMutation.isPending ? "Creating..." : "Create Invoice"}
+                  <Button type="submit" disabled={updateMutation.isPending}>
+                    {updateMutation.isPending ? "Updating..." : "Update Invoice"}
                   </Button>
                 </div>
               </form>
             </Form>
-          </DialogContent>
-        </Dialog>
-      </div>
+          )}
+        </DialogContent>
+      </Dialog>
 
       <Card className="p-6">
         <div className="flex items-center gap-4 mb-6">
@@ -320,13 +1133,31 @@ export default function Invoices() {
                     <TableCell>{format(new Date(invoice.createdAt!), "dd MMM yyyy")}</TableCell>
                     <TableCell className="text-right">
                       <div className="flex items-center justify-end gap-2">
-                        <Button variant="ghost" size="icon" data-testid={`button-view-${invoice.id}`}>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleView(invoice)}
+                          data-testid={`button-view-${invoice.id}`}
+                          title="View"
+                        >
                           <Eye className="h-4 w-4" />
                         </Button>
-                        <Button variant="ghost" size="icon" data-testid={`button-download-${invoice.id}`}>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleDownload(invoice)}
+                          data-testid={`button-download-${invoice.id}`}
+                          title="Download"
+                        >
                           <Download className="h-4 w-4" />
                         </Button>
-                        <Button variant="ghost" size="icon" data-testid={`button-edit-${invoice.id}`}>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleEdit(invoice)}
+                          data-testid={`button-edit-${invoice.id}`}
+                          title="Edit"
+                        >
                           <Edit className="h-4 w-4" />
                         </Button>
                         <Button
@@ -334,6 +1165,7 @@ export default function Invoices() {
                           size="icon"
                           onClick={() => deleteMutation.mutate(invoice.id)}
                           data-testid={`button-delete-${invoice.id}`}
+                          title="Delete"
                         >
                           <Trash2 className="h-4 w-4 text-destructive" />
                         </Button>
