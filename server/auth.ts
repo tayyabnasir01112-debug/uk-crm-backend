@@ -221,7 +221,11 @@ export async function setupAuth(app: Express) {
         if (err) {
           console.error("Session login error:", err);
           console.error("Session login error stack:", err?.stack);
+          console.error("Session login error code:", (err as any)?.code);
+          console.error("Session login error syscall:", (err as any)?.syscall);
+          console.error("Session login error hostname:", (err as any)?.hostname);
           console.error("User being logged in:", { id: user.id, email: user.email });
+          console.error("DATABASE_URL check:", process.env.DATABASE_URL ? `Set (${process.env.DATABASE_URL.substring(0, 30)}...)` : 'Not set');
           return res.status(500).json({ message: err.message || "Failed to log in user" });
         }
         res.json({ message: "Logged in successfully", user });
