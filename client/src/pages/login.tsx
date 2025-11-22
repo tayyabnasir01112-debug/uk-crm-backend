@@ -30,14 +30,6 @@ export default function Login() {
       console.log("🔍 Signup Debug:");
       console.log("  - Full API URL:", url);
       console.log("  - API Base URL:", API_BASE_URL);
-      console.log("  - VITE_API_URL env:", import.meta.env.VITE_API_URL || '(not set)');
-      console.log("  - Window API URL:", (window as any).__API_URL__ || '(not set)');
-      
-      // Ensure URL is valid - should always be absolute in production
-      if (!url.startsWith('http://') && !url.startsWith('https://')) {
-        console.error("❌ URL is not absolute:", url);
-        throw new Error(`Invalid API URL format: ${url}. Expected absolute URL starting with http:// or https://`);
-      }
       
       const body = isLogin
         ? { email, password }
