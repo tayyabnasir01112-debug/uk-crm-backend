@@ -25,6 +25,10 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <script>
+      // Set API URL at runtime - works even if Vite env vars weren't available at build time
+      window.__API_URL__ = 'https://uk-crm-backend.onrender.com';
+    </script>
   </head>
   <body>
     <div id="root"></div>

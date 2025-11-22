@@ -3,8 +3,17 @@
 // Falls back to relative URLs in development
 
 const getApiBaseUrl = () => {
-  // In production (Netlify), use environment variable
-  const apiUrl = import.meta.env.VITE_API_URL;
+  // Try multiple sources for the API URL (runtime and build-time)
+  // 1. Vite env var (set at build time)
+  // 2. Window global (can be set at runtime)
+  // 3. Default to Render backend
+  
+  const viteUrl = import.meta.env.VITE_API_URL;
+  const windowUrl = (window as any).__API_URL__;
+  const defaultUrl = 'https://uk-crm-backend.onrender.com';
+  
+  const apiUrl = viteUrl || windowUrl || defaultUrl;
+  
   if (apiUrl) {
     // Remove trailing slash if present
     return apiUrl.replace(/\/$/, '');
@@ -32,9 +41,8 @@ export const apiUrl = (path: string): string => {
   return `/${cleanPath}`;
 };
 
-// Debug helper
-if (import.meta.env.DEV || import.meta.env.MODE === 'development') {
-  console.log('API Base URL:', API_BASE_URL || '(relative)');
-  console.log('VITE_API_URL env:', import.meta.env.VITE_API_URL || '(not set)');
-}
+// Debug helper - always log in production to help troubleshoot
+console.log('API Base URL:', API_BASE_URL || '(relative)');
+console.log('VITE_API_URL env:', import.meta.env.VITE_API_URL || '(not set)');
+console.log('Window API URL:', (window as any).__API_URL__ || '(not set)');
 
