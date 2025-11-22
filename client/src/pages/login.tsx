@@ -35,21 +35,33 @@ export default function Login() {
         ? { email, password }
         : { email, password, firstName, lastName };
 
-      const response = await fetch(url, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify(body),
-      });
+      let response: Response;
+      try {
+        response = await fetch(url, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify(body),
+        });
+      } catch (fetchError: any) {
+        // Fetch failed - could be network error, CORS, or invalid URL
+        console.error("❌ Fetch error:", fetchError);
+        throw new Error(`Network error: ${fetchError.message || 'Failed to connect to server'}`);
+      }
 
       // Check if response is JSON
       let data;
       const contentType = response.headers.get("content-type");
       if (contentType && contentType.includes("application/json")) {
-        data = await response.json();
+        try {
+          data = await response.json();
+        } catch (jsonError) {
+          const text = await response.text();
+          throw new Error(`Server returned invalid JSON: ${text.substring(0, 200)}`);
+        }
       } else {
         const text = await response.text();
-        throw new Error(`Invalid response: ${text.substring(0, 100)}`);
+        throw new Error(`Server returned non-JSON response (${response.status}): ${text.substring(0, 200)}`);
       }
 
       if (!response.ok) {
@@ -78,16 +90,16 @@ export default function Login() {
       let errorMessage = error.message || "Authentication failed";
       
       // Handle specific error types
-      if (error.message?.includes("Failed to fetch") || 
+      if (error.message?.includes("Network error") || 
+          error.message?.includes("Failed to fetch") || 
           error.message?.includes("NetworkError") ||
           error.message?.includes("Network request failed")) {
         errorMessage = "Cannot connect to server. The backend might be starting up. Please try again in a few seconds.";
-      } else if (error.message?.includes("Invalid API URL") || error.message?.includes("Invalid URL")) {
-        errorMessage = `API URL Error: ${error.message}. Check console for details.`;
       } else if (error.message?.includes("CORS")) {
         errorMessage = "CORS error: Server is not allowing requests from this domain.";
-      } else if (error.message?.includes("Invalid response")) {
-        errorMessage = error.message;
+      } else {
+        // Show the actual error message
+        errorMessage = error.message || "Authentication failed";
       }
       
       toast({
