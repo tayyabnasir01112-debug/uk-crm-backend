@@ -48,9 +48,10 @@ app.use(cors({
     
     callback(null, true); // Allow all for now, tighten later if needed
   },
-  credentials: true, // Allow cookies/sessions
+  credentials: true, // CRITICAL: Allow cookies/sessions for cross-origin
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
+  exposedHeaders: ['Set-Cookie'], // Expose Set-Cookie header
 }));
 
 app.use(express.json({
