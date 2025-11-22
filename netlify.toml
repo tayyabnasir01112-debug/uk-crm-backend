@@ -1,4 +1,5 @@
 # Netlify Configuration for UK Small Business CRM
+# Updated: PDF/Word download features added
 
 [build]
   # Build command - builds both frontend and backend
