@@ -23,6 +23,7 @@ import { z } from "zod";
 import { Plus, Search, Eye, Download, Edit, Trash2, X, FileCheck, FileText, TruckIcon } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { isUnauthorizedError } from "@/lib/authUtils";
+import { getAPIBaseURL } from "@/lib/api";
 import type { Invoice, Quotation, DeliveryChallan } from "@shared/schema";
 import { format } from "date-fns";
 
@@ -403,12 +404,43 @@ export default function Invoices() {
   };
 
   const handleDownload = async (invoice: Invoice, format: 'pdf' | 'word' = 'pdf', includeHeader: boolean = true, includeFooter: boolean = true) => {
-    // TODO: Implement PDF/Word download with header/footer options
-    toast({
-      title: "Download",
-      description: `Downloading invoice as ${format.toUpperCase()}...`,
-    });
-    // This will be implemented with a backend endpoint
+    try {
+      const url = new URL(`/api/invoices/${invoice.id}/download`, getAPIBaseURL());
+      url.searchParams.set('format', format);
+      url.searchParams.set('includeHeader', includeHeader.toString());
+      url.searchParams.set('includeFooter', includeFooter.toString());
+
+      const response = await fetch(url.toString(), {
+        method: 'GET',
+        credentials: 'include',
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to download document');
+      }
+
+      const blob = await response.blob();
+      const downloadUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = downloadUrl;
+      link.download = `invoice-${invoice.invoiceNumber}.${format === 'pdf' ? 'pdf' : 'docx'}`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(downloadUrl);
+
+      toast({
+        title: "Success",
+        description: `Invoice downloaded as ${format.toUpperCase()}`,
+      });
+    } catch (error) {
+      console.error("Download error:", error);
+      toast({
+        title: "Error",
+        description: "Failed to download invoice",
+        variant: "destructive",
+      });
+    }
   };
 
   if (authLoading || isLoading) {
@@ -846,8 +878,26 @@ export default function Invoices() {
                       <div>
                         <FormLabel>Format</FormLabel>
                         <div className="flex gap-2 mt-2">
-                          <Button variant="outline" onClick={() => handleDownload(selectedInvoice, 'pdf')}>PDF</Button>
-                          <Button variant="outline" onClick={() => handleDownload(selectedInvoice, 'word')}>Word</Button>
+                          <Button variant="outline" onClick={() => {
+                            const headerCheckbox = document.getElementById('includeHeader') as HTMLInputElement;
+                            const footerCheckbox = document.getElementById('includeFooter') as HTMLInputElement;
+                            handleDownload(
+                              selectedInvoice,
+                              'pdf',
+                              headerCheckbox?.checked ?? true,
+                              footerCheckbox?.checked ?? true
+                            );
+                          }}>PDF</Button>
+                          <Button variant="outline" onClick={() => {
+                            const headerCheckbox = document.getElementById('includeHeader') as HTMLInputElement;
+                            const footerCheckbox = document.getElementById('includeFooter') as HTMLInputElement;
+                            handleDownload(
+                              selectedInvoice,
+                              'word',
+                              headerCheckbox?.checked ?? true,
+                              footerCheckbox?.checked ?? true
+                            );
+                          }}>Word</Button>
                         </div>
                       </div>
                       <div className="flex items-center space-x-2">

@@ -12,6 +12,7 @@ import {
   insertEmployeeSchema,
   insertCustomerSchema,
 } from "@shared/schema";
+import { generatePDF, generateWord } from "./documentGenerator";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   await setupAuth(app);
@@ -245,6 +246,136 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error deleting delivery challan:", error);
       res.status(500).json({ message: "Failed to delete delivery challan" });
+    }
+  });
+
+  // Download endpoints
+  app.get('/api/quotations/:id/download', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.id;
+      const quotations = await storage.getQuotations(userId);
+      const quotation = quotations.find(q => q.id === req.params.id);
+      
+      if (!quotation) {
+        return res.status(404).json({ message: "Quotation not found" });
+      }
+
+      const format = req.query.format || 'pdf';
+      const includeHeader = req.query.includeHeader !== 'false';
+      const includeFooter = req.query.includeFooter !== 'false';
+
+      const business = await storage.getBusiness(userId);
+      const options = {
+        includeHeader,
+        includeFooter,
+        businessName: business?.name,
+        businessAddress: business?.address,
+        businessEmail: business?.email,
+        businessPhone: business?.phone,
+      };
+
+      if (format === 'pdf') {
+        const pdfBuffer = await generatePDF(quotation, 'quotation', options);
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', `attachment; filename="quotation-${quotation.quotationNumber}.pdf"`);
+        res.send(pdfBuffer);
+      } else if (format === 'word') {
+        const wordBuffer = await generateWord(quotation, 'quotation', options);
+        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+        res.setHeader('Content-Disposition', `attachment; filename="quotation-${quotation.quotationNumber}.docx"`);
+        res.send(wordBuffer);
+      } else {
+        res.status(400).json({ message: "Invalid format. Use 'pdf' or 'word'" });
+      }
+    } catch (error) {
+      console.error("Error generating quotation document:", error);
+      res.status(500).json({ message: "Failed to generate document" });
+    }
+  });
+
+  app.get('/api/invoices/:id/download', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.id;
+      const invoices = await storage.getInvoices(userId);
+      const invoice = invoices.find(i => i.id === req.params.id);
+      
+      if (!invoice) {
+        return res.status(404).json({ message: "Invoice not found" });
+      }
+
+      const format = req.query.format || 'pdf';
+      const includeHeader = req.query.includeHeader !== 'false';
+      const includeFooter = req.query.includeFooter !== 'false';
+
+      const business = await storage.getBusiness(userId);
+      const options = {
+        includeHeader,
+        includeFooter,
+        businessName: business?.name,
+        businessAddress: business?.address,
+        businessEmail: business?.email,
+        businessPhone: business?.phone,
+      };
+
+      if (format === 'pdf') {
+        const pdfBuffer = await generatePDF(invoice, 'invoice', options);
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', `attachment; filename="invoice-${invoice.invoiceNumber}.pdf"`);
+        res.send(pdfBuffer);
+      } else if (format === 'word') {
+        const wordBuffer = await generateWord(invoice, 'invoice', options);
+        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+        res.setHeader('Content-Disposition', `attachment; filename="invoice-${invoice.invoiceNumber}.docx"`);
+        res.send(wordBuffer);
+      } else {
+        res.status(400).json({ message: "Invalid format. Use 'pdf' or 'word'" });
+      }
+    } catch (error) {
+      console.error("Error generating invoice document:", error);
+      res.status(500).json({ message: "Failed to generate document" });
+    }
+  });
+
+  app.get('/api/delivery-challans/:id/download', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.id;
+      const challans = await storage.getDeliveryChallans(userId);
+      const challan = challans.find(c => c.id === req.params.id);
+      
+      if (!challan) {
+        return res.status(404).json({ message: "Delivery challan not found" });
+      }
+
+      const format = req.query.format || 'pdf';
+      const includeHeader = req.query.includeHeader !== 'false';
+      const includeFooter = req.query.includeFooter !== 'false';
+
+      const business = await storage.getBusiness(userId);
+      const options = {
+        includeHeader,
+        includeFooter,
+        businessName: business?.name,
+        businessAddress: business?.address,
+        businessEmail: business?.email,
+        businessPhone: business?.phone,
+      };
+
+      if (format === 'pdf') {
+        const pdfBuffer = await generatePDF(challan, 'challan', options);
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', `attachment; filename="challan-${challan.challanNumber}.pdf"`);
+        res.send(pdfBuffer);
+      } else if (format === 'word') {
+        const wordBuffer = await generateWord(challan, 'challan', options);
+        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+        res.setHeader('Content-Disposition', `attachment; filename="challan-${challan.challanNumber}.docx"`);
+        res.send(wordBuffer);
+      } else {
+        res.status(400).json({ message: "Invalid format. Use 'pdf' or 'word'" });
+      }
+    } catch (error) {
+      console.error("Error generating delivery challan document:", error);
+      res.status(500).json({ message: "Failed to generate document" });
     }
   });
 

@@ -23,6 +23,7 @@ import { z } from "zod";
 import { Plus, Search, Eye, Download, Edit, Trash2, TruckIcon, X, FileText, FileCheck } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { isUnauthorizedError } from "@/lib/authUtils";
+import { getAPIBaseURL } from "@/lib/api";
 import type { DeliveryChallan, Quotation } from "@shared/schema";
 import { format } from "date-fns";
 import { useLocation } from "wouter";
@@ -289,6 +290,46 @@ export default function DeliveryChallans() {
     const currentItems = form.getValues("items");
     if (currentItems.length > 1) {
       form.setValue("items", currentItems.filter((_, i) => i !== index));
+    }
+  };
+
+  const handleDownload = async (challan: DeliveryChallan, format: 'pdf' | 'word' = 'pdf', includeHeader: boolean = true, includeFooter: boolean = true) => {
+    try {
+      const url = new URL(`/api/delivery-challans/${challan.id}/download`, getAPIBaseURL());
+      url.searchParams.set('format', format);
+      url.searchParams.set('includeHeader', includeHeader.toString());
+      url.searchParams.set('includeFooter', includeFooter.toString());
+
+      const response = await fetch(url.toString(), {
+        method: 'GET',
+        credentials: 'include',
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to download document');
+      }
+
+      const blob = await response.blob();
+      const downloadUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = downloadUrl;
+      link.download = `challan-${challan.challanNumber}.${format === 'pdf' ? 'pdf' : 'docx'}`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(downloadUrl);
+
+      toast({
+        title: "Success",
+        description: `Delivery challan downloaded as ${format.toUpperCase()}`,
+      });
+    } catch (error) {
+      console.error("Download error:", error);
+      toast({
+        title: "Error",
+        description: "Failed to download delivery challan",
+        variant: "destructive",
+      });
     }
   };
 
@@ -568,6 +609,7 @@ export default function DeliveryChallans() {
                         <Button
                           variant="ghost"
                           size="icon"
+                          onClick={() => handleDownload(challan)}
                           data-testid={`button-download-${challan.id}`}
                           title="Download"
                         >

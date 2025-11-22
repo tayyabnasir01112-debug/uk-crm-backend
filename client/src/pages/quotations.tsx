@@ -23,6 +23,7 @@ import { z } from "zod";
 import { Plus, Search, Eye, Download, Edit, Trash2, X, FileCheck, TruckIcon } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { isUnauthorizedError } from "@/lib/authUtils";
+import { getAPIBaseURL } from "@/lib/api";
 import type { Quotation } from "@shared/schema";
 import { format } from "date-fns";
 import { useLocation } from "wouter";
@@ -250,6 +251,46 @@ export default function Quotations() {
     const currentItems = form.getValues("items");
     if (currentItems.length > 1) {
       form.setValue("items", currentItems.filter((_, i) => i !== index));
+    }
+  };
+
+  const handleDownload = async (quotation: Quotation, format: 'pdf' | 'word' = 'pdf', includeHeader: boolean = true, includeFooter: boolean = true) => {
+    try {
+      const url = new URL(`/api/quotations/${quotation.id}/download`, getAPIBaseURL());
+      url.searchParams.set('format', format);
+      url.searchParams.set('includeHeader', includeHeader.toString());
+      url.searchParams.set('includeFooter', includeFooter.toString());
+
+      const response = await fetch(url.toString(), {
+        method: 'GET',
+        credentials: 'include',
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to download document');
+      }
+
+      const blob = await response.blob();
+      const downloadUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = downloadUrl;
+      link.download = `quotation-${quotation.quotationNumber}.${format === 'pdf' ? 'pdf' : 'docx'}`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(downloadUrl);
+
+      toast({
+        title: "Success",
+        description: `Quotation downloaded as ${format.toUpperCase()}`,
+      });
+    } catch (error) {
+      console.error("Download error:", error);
+      toast({
+        title: "Error",
+        description: "Failed to download quotation",
+        variant: "destructive",
+      });
     }
   };
 
@@ -627,6 +668,54 @@ export default function Quotations() {
                   <Button variant="outline" onClick={() => setViewDialogOpen(false)}>
                     Close
                   </Button>
+                  <Dialog>
+                    <DialogTrigger asChild>
+                      <Button variant="outline">
+                        <Download className="h-4 w-4 mr-2" />
+                        Download
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent>
+                      <DialogHeader>
+                        <DialogTitle>Download Options</DialogTitle>
+                      </DialogHeader>
+                      <div className="space-y-4">
+                        <div>
+                          <FormLabel>Format</FormLabel>
+                          <div className="flex gap-2 mt-2">
+                            <Button variant="outline" onClick={() => {
+                              const headerCheckbox = document.getElementById('quoIncludeHeader') as HTMLInputElement;
+                              const footerCheckbox = document.getElementById('quoIncludeFooter') as HTMLInputElement;
+                              handleDownload(
+                                selectedQuotation,
+                                'pdf',
+                                headerCheckbox?.checked ?? true,
+                                footerCheckbox?.checked ?? true
+                              );
+                            }}>PDF</Button>
+                            <Button variant="outline" onClick={() => {
+                              const headerCheckbox = document.getElementById('quoIncludeHeader') as HTMLInputElement;
+                              const footerCheckbox = document.getElementById('quoIncludeFooter') as HTMLInputElement;
+                              handleDownload(
+                                selectedQuotation,
+                                'word',
+                                headerCheckbox?.checked ?? true,
+                                footerCheckbox?.checked ?? true
+                              );
+                            }}>Word</Button>
+                          </div>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <input type="checkbox" id="quoIncludeHeader" defaultChecked />
+                          <label htmlFor="quoIncludeHeader">Include Header</label>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <input type="checkbox" id="quoIncludeFooter" defaultChecked />
+                          <label htmlFor="quoIncludeFooter">Include Footer</label>
+                        </div>
+                      </div>
+                    </DialogContent>
+                  </Dialog>
                   <Button onClick={() => handleEdit(selectedQuotation)}>
                     <Edit className="h-4 w-4 mr-2" />
                     Edit
@@ -691,6 +780,7 @@ export default function Quotations() {
                         <Button
                           variant="ghost"
                           size="icon"
+                          onClick={() => handleDownload(quotation)}
                           data-testid={`button-download-${quotation.id}`}
                           title="Download"
                         >
