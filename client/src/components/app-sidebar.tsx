@@ -41,18 +41,20 @@ export function AppSidebar() {
   const handleLogout = async () => {
     setIsLoggingOut(true);
     try {
-      await apiRequest("POST", "/api/logout", {});
+      const response = await apiRequest("POST", "/api/logout", {});
+      // Read the response to ensure it completes
+      await response.json();
       // Clear all queries
       queryClient.clear();
-      // Redirect to login
-      window.location.href = "/login";
+      // Small delay to ensure session is cleared
+      setTimeout(() => {
+        window.location.href = "/login";
+      }, 100);
     } catch (error) {
       console.error("Logout error:", error);
-      // Still redirect even if logout fails
+      // Still redirect even if logout fails - clear cache and redirect
       queryClient.clear();
       window.location.href = "/login";
-    } finally {
-      setIsLoggingOut(false);
     }
   };
 
