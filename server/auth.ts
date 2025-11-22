@@ -182,16 +182,29 @@ export async function setupAuth(app: Express) {
   app.post("/api/login", (req, res, next) => {
     passport.authenticate("local", (err: any, user: User | false, info: any) => {
       if (err) {
-        return res.status(500).json({ message: "Authentication error" });
+        console.error("Login authentication error:", err);
+        console.error("Login error stack:", err?.stack);
+        console.error("Login error name:", err?.name);
+        return res.status(500).json({ message: err.message || "An error occurred during login" });
       }
       if (!user) {
-        return res.status(401).json({ message: info?.message || "Invalid credentials" });
+        return res.status(401).json({ message: info?.message || "Invalid email or password" });
       }
+      
+      // Verify user has ID before login
+      if (!user.id) {
+        console.error("Login error: user missing ID", user);
+        return res.status(500).json({ message: "User data error" });
+      }
+      
       req.login(user, (err) => {
         if (err) {
-          return res.status(500).json({ message: "Login failed" });
+          console.error("Session login error:", err);
+          console.error("Session login error stack:", err?.stack);
+          console.error("User being logged in:", { id: user.id, email: user.email });
+          return res.status(500).json({ message: err.message || "Failed to log in user" });
         }
-        return res.json({ user, message: "Login successful" });
+        res.json({ message: "Logged in successfully", user });
       });
     })(req, res, next);
   });
