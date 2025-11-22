@@ -24,15 +24,37 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { Subscription } from "@shared/schema";
+import { apiRequest } from "@/lib/queryClient";
+import { useState } from "react";
 
 export function AppSidebar() {
   const [location, setLocation] = useLocation();
+  const queryClient = useQueryClient();
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   const { data: subscription } = useQuery<Subscription>({
     queryKey: ["/api/subscription"],
   });
+
+  const handleLogout = async () => {
+    setIsLoggingOut(true);
+    try {
+      await apiRequest("POST", "/api/logout", {});
+      // Clear all queries
+      queryClient.clear();
+      // Redirect to login
+      window.location.href = "/login";
+    } catch (error) {
+      console.error("Logout error:", error);
+      // Still redirect even if logout fails
+      queryClient.clear();
+      window.location.href = "/login";
+    } finally {
+      setIsLoggingOut(false);
+    }
+  };
 
   const menuItems = [
     {
@@ -140,11 +162,12 @@ export function AppSidebar() {
         <Button
           variant="ghost"
           className="w-full justify-start"
-          onClick={() => window.location.href = "/api/logout"}
+          onClick={handleLogout}
+          disabled={isLoggingOut}
           data-testid="button-logout"
         >
           <LogOut className="h-4 w-4 mr-2" />
-          Log Out
+          {isLoggingOut ? "Logging out..." : "Log Out"}
         </Button>
       </SidebarFooter>
     </Sidebar>
