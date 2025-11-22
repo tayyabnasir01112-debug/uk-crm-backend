@@ -1,0 +1,19 @@
+# Render Blueprint for UK Small Business CRM Backend
+# This file can be used to deploy directly to Render
+
+services:
+  - type: web
+    name: uk-crm-backend
+    env: node
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      # Add these in Render dashboard:
+      # - DATABASE_URL (from Neon)
+      # - SESSION_SECRET (generate random string)
+      # - FRONTEND_URL (your Netlify URL)
+

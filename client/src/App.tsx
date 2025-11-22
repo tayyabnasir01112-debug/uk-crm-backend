@@ -10,6 +10,7 @@ import { useQuery } from "@tanstack/react-query";
 import type { Business } from "@shared/schema";
 
 import Landing from "@/pages/landing";
+import Login from "@/pages/login";
 import Onboarding from "@/pages/onboarding";
 import Dashboard from "@/pages/dashboard";
 import Quotations from "@/pages/quotations";
@@ -65,6 +66,7 @@ function Router() {
   if (!isAuthenticated) {
     return (
       <Switch>
+        <Route path="/login" component={Login} />
         <Route path="/" component={Landing} />
         <Route component={Landing} />
       </Switch>

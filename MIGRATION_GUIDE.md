@@ -20,8 +20,10 @@ Your CRM Launch application is built with:
 - **Frontend**: React + TypeScript + Vite
 - **Backend**: Express.js + Node.js
 - **Database**: PostgreSQL
-- **Authentication**: OpenID Connect (Replit Auth)
+- **Authentication**: Local Authentication (Email/Password with bcrypt)
 - **ORM**: Drizzle ORM
+
+**Note:** This application has been migrated from Replit Auth to local authentication for free hosting compatibility.
 
 ## Exporting Your Data
 
@@ -120,9 +122,8 @@ PGDATABASE=your-db-name
 # Session
 SESSION_SECRET=your-random-secret-key-here
 
-# Authentication (if keeping Replit Auth)
-ISSUER_URL=https://replit.com/oidc
-REPL_ID=your-repl-id
+# Authentication (Local Auth - no additional config needed)
+# Users register and login with email/password
 
 # Node
 NODE_ENV=production
@@ -156,14 +157,7 @@ This creates:
 | `DATABASE_URL` | PostgreSQL connection string | `postgresql://user:pass@host:5432/db` |
 | `SESSION_SECRET` | Secret for session encryption | `<random-64-char-string>` |
 | `NODE_ENV` | Environment mode | `production` |
-
-### Optional Variables (for Auth)
-
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `ISSUER_URL` | OIDC issuer URL | `https://replit.com/oidc` |
-| `REPL_ID` | Replit application ID | - |
-| `PORT` | Server port | `5000` |
+| `PORT` | Server port (optional) | `5000` |
 
 ---
 
@@ -247,9 +241,16 @@ This creates:
 
 2. **Backend on separate service** (Railway, Render, etc.)
 
-### Option 3: Netlify + Backend Service
+### Option 3: Netlify + Render (Recommended for Free Hosting)
 
-Similar to Vercel - deploy frontend on Netlify, backend elsewhere.
+**Best for:** Completely free hosting
+
+**Setup:**
+1. Deploy frontend to Netlify (free)
+2. Deploy backend to Render (free)
+3. Use Neon for database (free)
+
+See `NETLIFY_DEPLOYMENT.md` for detailed instructions.
 
 ### Option 4: Railway
 
@@ -324,31 +325,26 @@ Value: yourdomain.com
 
 ---
 
-## Authentication Migration
+## Authentication
 
-### If Replacing Replit Auth
+This application now uses **Local Authentication** (email/password) with bcrypt for password hashing.
 
-You'll need to implement alternative authentication:
+**Features:**
+- User registration with email/password
+- Secure password hashing with bcrypt
+- Session-based authentication
+- No third-party auth services required
 
-**Option 1: Auth0**
-- Create Auth0 account
-- Configure application
-- Replace `server/replitAuth.ts` with Auth0 implementation
+**Endpoints:**
+- `POST /api/register` - Register new user
+- `POST /api/login` - Login user
+- `POST /api/logout` - Logout user
+- `GET /api/auth/user` - Get current user (protected)
 
-**Option 2: NextAuth.js**
-- Add next-auth package
-- Configure providers (Google, email, etc.)
-
-**Option 3: Passport.js Local Strategy**
-- Implement username/password authentication
-- Add password hashing (bcrypt)
-- Create login/register endpoints
-
-### If Keeping Replit Auth
-
-Replit Auth can work on other platforms:
-- Keep `ISSUER_URL` and `REPL_ID`
-- Ensure callback URLs are updated in Replit settings
+**Migration from Replit Auth:**
+- All Replit Auth code has been replaced with local authentication
+- Users need to register new accounts (existing Replit Auth users will need to register)
+- No additional configuration needed beyond `SESSION_SECRET`
 
 ---
 

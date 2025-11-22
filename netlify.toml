@@ -1,0 +1,44 @@
+# Netlify Configuration for UK Small Business CRM
+
+[build]
+  # Build command - builds both frontend and backend
+  command = "npm run build"
+  # Publish directory - where the built static files are
+  publish = "dist/public"
+
+# Functions configuration (if using Netlify Functions for backend)
+# Note: For full Express apps, consider using Netlify's Edge Functions or
+# deploying backend separately to a free service like Render/Railway
+
+[build.environment]
+  NODE_VERSION = "20"
+
+# Redirect all routes to index.html for client-side routing
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+# API proxy (if backend is on a different domain)
+# Uncomment and update with your Render backend URL
+# [[redirects]]
+#   from = "/api/*"
+#   to = "https://your-backend.onrender.com/api/:splat"
+#   status = 200
+#   force = true
+#   headers = { X-From = "Netlify" }
+
+# Headers for security
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "DENY"
+    X-XSS-Protection = "1; mode=block"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+
+[[headers]]
+  for = "/assets/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+

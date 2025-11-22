@@ -113,7 +113,7 @@ export default function Landing() {
               <Button 
                 size="lg" 
                 className="text-lg px-8 py-6 min-h-14"
-                onClick={() => window.location.href = "/api/login"}
+                onClick={() => window.location.href = "/login"}
                 data-testid="button-start-trial"
               >
                 Start 7-Day Free Trial
@@ -234,7 +234,7 @@ export default function Landing() {
               <Button 
                 className="w-full text-lg py-6 min-h-14" 
                 size="lg"
-                onClick={() => window.location.href = "/api/login"}
+                onClick={() => window.location.href = "/login"}
                 data-testid="button-pricing-cta"
               >
                 Start Free Trial

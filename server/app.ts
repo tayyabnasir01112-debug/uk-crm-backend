@@ -6,6 +6,7 @@ import express, {
   Response,
   NextFunction,
 } from "express";
+import cors from "cors";
 
 import { registerRoutes } from "./routes";
 
@@ -27,6 +28,15 @@ declare module 'http' {
     rawBody: unknown
   }
 }
+
+// CORS configuration - allow requests from Netlify frontend
+app.use(cors({
+  origin: process.env.FRONTEND_URL || process.env.VITE_API_URL || true, // Allow all origins in development, specific in production
+  credentials: true, // Allow cookies/sessions
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+}));
+
 app.use(express.json({
   verify: (req, _res, buf) => {
     req.rawBody = buf;
