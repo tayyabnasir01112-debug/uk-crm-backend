@@ -22,16 +22,19 @@ export const apiUrl = (path: string): string => {
   const cleanPath = path.startsWith('/') ? path.slice(1) : path;
   
   if (API_BASE_URL) {
+    // Remove trailing slash from base URL if present
+    const base = API_BASE_URL.endsWith('/') ? API_BASE_URL.slice(0, -1) : API_BASE_URL;
     // Ensure no double slashes
-    return `${API_BASE_URL}/${cleanPath}`;
+    return `${base}/${cleanPath}`;
   }
   
   // Relative URL for development
   return `/${cleanPath}`;
 };
 
-// Debug helper (remove in production)
-if (import.meta.env.DEV) {
+// Debug helper
+if (import.meta.env.DEV || import.meta.env.MODE === 'development') {
   console.log('API Base URL:', API_BASE_URL || '(relative)');
+  console.log('VITE_API_URL env:', import.meta.env.VITE_API_URL || '(not set)');
 }
 

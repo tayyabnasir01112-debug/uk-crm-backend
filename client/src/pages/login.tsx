@@ -25,6 +25,18 @@ export default function Login() {
 
     try {
       const url = isLogin ? apiUrl("/api/login") : apiUrl("/api/register");
+      
+      // Debug logging
+      console.log("API URL:", url);
+      console.log("API Base URL:", import.meta.env.VITE_API_URL);
+      
+      // Validate URL
+      try {
+        new URL(url);
+      } catch (urlError) {
+        throw new Error(`Invalid API URL: ${url}. Please check VITE_API_URL environment variable.`);
+      }
+      
       const body = isLogin
         ? { email, password }
         : { email, password, firstName, lastName };
@@ -61,9 +73,22 @@ export default function Login() {
       // Redirect to dashboard
       setLocation("/");
     } catch (error: any) {
+      console.error("Authentication error:", error);
+      
+      // Better error messages
+      let errorMessage = error.message || "Authentication failed";
+      
+      if (error.message?.includes("Failed to fetch") || error.message?.includes("NetworkError")) {
+        errorMessage = "Cannot connect to server. Please check your internet connection and try again.";
+      } else if (error.message?.includes("Invalid API URL")) {
+        errorMessage = error.message;
+      } else if (error.message?.includes("CORS")) {
+        errorMessage = "CORS error: Server is not allowing requests from this domain.";
+      }
+      
       toast({
         title: "Error",
-        description: error.message || "Authentication failed",
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
