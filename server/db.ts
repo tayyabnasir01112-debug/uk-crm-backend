@@ -9,11 +9,21 @@ if (!process.env.DATABASE_URL) {
   );
 }
 
+// Clean up DATABASE_URL - remove common prefixes/suffixes
+let dbUrl = process.env.DATABASE_URL.trim();
+// Remove 'psql ' prefix if present
+if (dbUrl.startsWith('psql ')) {
+  dbUrl = dbUrl.substring(5).trim();
+}
+// Remove surrounding quotes if present
+if ((dbUrl.startsWith("'") && dbUrl.endsWith("'")) || (dbUrl.startsWith('"') && dbUrl.endsWith('"'))) {
+  dbUrl = dbUrl.slice(1, -1).trim();
+}
+
 // Validate DATABASE_URL format
-const dbUrl = process.env.DATABASE_URL;
-if (dbUrl === 'DATABASE_URL' || !dbUrl.startsWith('postgresql://') && !dbUrl.startsWith('postgres://')) {
+if (dbUrl === 'DATABASE_URL' || (!dbUrl.startsWith('postgresql://') && !dbUrl.startsWith('postgres://'))) {
   throw new Error(
-    `Invalid DATABASE_URL format. Got: ${dbUrl.substring(0, 50)}... (Check Render environment variables)`,
+    `Invalid DATABASE_URL format. Got: ${dbUrl.substring(0, 50)}... (Should start with postgresql://)`,
   );
 }
 
@@ -23,3 +33,6 @@ neonConfig.webSocketConstructor = ws;
 // Initialize database connection
 export const pool = new Pool({ connectionString: dbUrl });
 export const db = drizzle({ client: pool, schema });
+
+// Log successful connection (without exposing credentials)
+console.log('✅ Database connected:', dbUrl.split('@')[1] || 'connected');
