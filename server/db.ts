@@ -9,9 +9,17 @@ if (!process.env.DATABASE_URL) {
   );
 }
 
+// Validate DATABASE_URL format
+const dbUrl = process.env.DATABASE_URL;
+if (dbUrl === 'DATABASE_URL' || !dbUrl.startsWith('postgresql://') && !dbUrl.startsWith('postgres://')) {
+  throw new Error(
+    `Invalid DATABASE_URL format. Got: ${dbUrl.substring(0, 50)}... (Check Render environment variables)`,
+  );
+}
+
 // Configure Neon for serverless
 neonConfig.webSocketConstructor = ws;
 
 // Initialize database connection
-export const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+export const pool = new Pool({ connectionString: dbUrl });
 export const db = drizzle({ client: pool, schema });
