@@ -9,18 +9,21 @@ const getApiBaseUrl = () => {
   // 3. Default to Render backend
   
   const viteUrl = import.meta.env.VITE_API_URL;
-  const windowUrl = (window as any).__API_URL__;
+  const windowUrl = typeof window !== 'undefined' ? (window as any).__API_URL__ : undefined;
   const defaultUrl = 'https://uk-crm-backend.onrender.com';
   
+  // Always use default if nothing else is set (production fallback)
+  // This ensures we always have a valid URL
   const apiUrl = viteUrl || windowUrl || defaultUrl;
   
   if (apiUrl) {
     // Remove trailing slash if present
-    return apiUrl.replace(/\/$/, '');
+    const cleaned = apiUrl.replace(/\/$/, '');
+    return cleaned;
   }
   
-  // In development, use relative URL (same origin)
-  return '';
+  // Fallback (should never reach here with defaultUrl)
+  return defaultUrl;
 };
 
 export const API_BASE_URL = getApiBaseUrl();

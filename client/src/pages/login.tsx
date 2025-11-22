@@ -27,14 +27,16 @@ export default function Login() {
       const url = isLogin ? apiUrl("/api/login") : apiUrl("/api/register");
       
       // Debug logging
-      console.log("API URL:", url);
-      console.log("API Base URL:", import.meta.env.VITE_API_URL);
+      console.log("🔍 Signup Debug:");
+      console.log("  - Full API URL:", url);
+      console.log("  - API Base URL:", API_BASE_URL);
+      console.log("  - VITE_API_URL env:", import.meta.env.VITE_API_URL || '(not set)');
+      console.log("  - Window API URL:", (window as any).__API_URL__ || '(not set)');
       
-      // Validate URL
-      try {
-        new URL(url);
-      } catch (urlError) {
-        throw new Error(`Invalid API URL: ${url}. Please check VITE_API_URL environment variable.`);
+      // Ensure URL is valid - should always be absolute in production
+      if (!url.startsWith('http://') && !url.startsWith('https://')) {
+        console.error("❌ URL is not absolute:", url);
+        throw new Error(`Invalid API URL format: ${url}. Expected absolute URL starting with http:// or https://`);
       }
       
       const body = isLogin
@@ -73,17 +75,27 @@ export default function Login() {
       // Redirect to dashboard
       setLocation("/");
     } catch (error: any) {
-      console.error("Authentication error:", error);
+      console.error("❌ Authentication error:", error);
+      console.error("Error details:", {
+        message: error.message,
+        stack: error.stack,
+        name: error.name,
+      });
       
       // Better error messages
       let errorMessage = error.message || "Authentication failed";
       
-      if (error.message?.includes("Failed to fetch") || error.message?.includes("NetworkError")) {
-        errorMessage = "Cannot connect to server. Please check your internet connection and try again.";
-      } else if (error.message?.includes("Invalid API URL")) {
-        errorMessage = error.message;
+      // Handle specific error types
+      if (error.message?.includes("Failed to fetch") || 
+          error.message?.includes("NetworkError") ||
+          error.message?.includes("Network request failed")) {
+        errorMessage = "Cannot connect to server. The backend might be starting up. Please try again in a few seconds.";
+      } else if (error.message?.includes("Invalid API URL") || error.message?.includes("Invalid URL")) {
+        errorMessage = `API URL Error: ${error.message}. Check console for details.`;
       } else if (error.message?.includes("CORS")) {
         errorMessage = "CORS error: Server is not allowing requests from this domain.";
+      } else if (error.message?.includes("Invalid response")) {
+        errorMessage = error.message;
       }
       
       toast({
