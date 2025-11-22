@@ -16,8 +16,19 @@ export function getSession() {
     throw new Error("DATABASE_URL must be set");
   }
 
+  // Clean up DATABASE_URL - same as in db.ts
+  let dbUrl = process.env.DATABASE_URL.trim();
+  // Remove 'psql ' prefix if present
+  if (dbUrl.startsWith('psql ')) {
+    dbUrl = dbUrl.substring(5).trim();
+  }
+  // Remove surrounding quotes if present
+  if ((dbUrl.startsWith("'") && dbUrl.endsWith("'")) || (dbUrl.startsWith('"') && dbUrl.endsWith('"'))) {
+    dbUrl = dbUrl.slice(1, -1).trim();
+  }
+
   const sessionStore = new pgStore({
-    conString: process.env.DATABASE_URL,
+    conString: dbUrl,
     createTableIfMissing: true,
     ttl: sessionTtl,
     tableName: "sessions",
