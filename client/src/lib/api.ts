@@ -4,8 +4,10 @@
 
 const getApiBaseUrl = () => {
   // In production (Netlify), use environment variable
-  if (import.meta.env.VITE_API_URL) {
-    return import.meta.env.VITE_API_URL;
+  const apiUrl = import.meta.env.VITE_API_URL;
+  if (apiUrl) {
+    // Remove trailing slash if present
+    return apiUrl.replace(/\/$/, '');
   }
   
   // In development, use relative URL (same origin)
@@ -18,6 +20,18 @@ export const API_BASE_URL = getApiBaseUrl();
 export const apiUrl = (path: string): string => {
   // Remove leading slash if present to avoid double slashes
   const cleanPath = path.startsWith('/') ? path.slice(1) : path;
-  return API_BASE_URL ? `${API_BASE_URL}/${cleanPath}` : `/${cleanPath}`;
+  
+  if (API_BASE_URL) {
+    // Ensure no double slashes
+    return `${API_BASE_URL}/${cleanPath}`;
+  }
+  
+  // Relative URL for development
+  return `/${cleanPath}`;
 };
+
+// Debug helper (remove in production)
+if (import.meta.env.DEV) {
+  console.log('API Base URL:', API_BASE_URL || '(relative)');
+}
 

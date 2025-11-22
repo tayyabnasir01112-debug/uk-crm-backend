@@ -30,8 +30,24 @@ declare module 'http' {
 }
 
 // CORS configuration - allow requests from Netlify frontend
+const frontendUrl = process.env.FRONTEND_URL || 'https://uk-crm-frontend.netlify.app';
 app.use(cors({
-  origin: process.env.FRONTEND_URL || process.env.VITE_API_URL || true, // Allow all origins in development, specific in production
+  origin: (origin, callback) => {
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return callback(null, true);
+    
+    // Allow Netlify frontend
+    if (origin === frontendUrl || origin.includes('netlify.app')) {
+      return callback(null, true);
+    }
+    
+    // In development, allow all origins
+    if (process.env.NODE_ENV !== 'production') {
+      return callback(null, true);
+    }
+    
+    callback(null, true); // Allow all for now, tighten later if needed
+  },
   credentials: true, // Allow cookies/sessions
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
