@@ -68,6 +68,20 @@ export default function Login() {
         throw new Error(data.message || `Authentication failed: ${response.status} ${response.statusText}`);
       }
 
+      // Handle registration that requires manual login
+      if (!isLogin && data.requiresLogin) {
+        toast({
+          title: "Account Created",
+          description: "Registration successful! Please log in with your credentials.",
+        });
+        // Switch to login mode
+        setIsLogin(true);
+        setEmail(email); // Keep email filled
+        setPassword(""); // Clear password
+        setLoading(false);
+        return;
+      }
+
       // Invalidate and refetch user data
       await queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
       
