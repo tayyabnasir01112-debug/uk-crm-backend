@@ -140,6 +140,8 @@ export const insertInventoryItemSchema = createInsertSchema(inventoryItems).omit
   id: true,
   createdAt: true,
   updatedAt: true,
+}).extend({
+  unitPrice: z.union([z.string(), z.number()]).transform((val) => typeof val === 'number' ? val.toString() : val),
 });
 
 export type InsertInventoryItem = z.infer<typeof insertInventoryItemSchema>;
@@ -173,6 +175,11 @@ export const insertQuotationSchema = createInsertSchema(quotations).omit({
   id: true,
   createdAt: true,
   updatedAt: true,
+}).extend({
+  subtotal: z.union([z.string(), z.number()]).transform((val) => typeof val === 'number' ? val.toString() : val),
+  taxRate: z.union([z.string(), z.number()]).transform((val) => typeof val === 'number' ? val.toString() : val),
+  taxAmount: z.union([z.string(), z.number()]).transform((val) => typeof val === 'number' ? val.toString() : val),
+  total: z.union([z.string(), z.number()]).transform((val) => typeof val === 'number' ? val.toString() : val),
 });
 
 export type InsertQuotation = z.infer<typeof insertQuotationSchema>;
@@ -207,6 +214,11 @@ export const insertInvoiceSchema = createInsertSchema(invoices).omit({
   id: true,
   createdAt: true,
   updatedAt: true,
+}).extend({
+  subtotal: z.union([z.string(), z.number()]).transform((val) => typeof val === 'number' ? val.toString() : val),
+  taxRate: z.union([z.string(), z.number()]).transform((val) => typeof val === 'number' ? val.toString() : val),
+  taxAmount: z.union([z.string(), z.number()]).transform((val) => typeof val === 'number' ? val.toString() : val),
+  total: z.union([z.string(), z.number()]).transform((val) => typeof val === 'number' ? val.toString() : val),
 });
 
 export type InsertInvoice = z.infer<typeof insertInvoiceSchema>;
