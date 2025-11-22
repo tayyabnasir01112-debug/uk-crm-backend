@@ -78,14 +78,26 @@ passport.use(
 );
 
 passport.serializeUser((user: Express.User, done) => {
-  done(null, (user as User).id);
+  const userId = (user as User).id;
+  if (!userId) {
+    console.error("Serialization error: user missing ID", user);
+    return done(new Error("User missing ID"), null);
+  }
+  done(null, userId);
 });
 
 passport.deserializeUser(async (id: string, done) => {
   try {
+    if (!id) {
+      return done(new Error("Missing user ID"), null);
+    }
     const user = await storage.getUser(id);
-    done(null, user || false);
+    if (!user) {
+      return done(null, false);
+    }
+    done(null, user);
   } catch (error) {
+    console.error("Deserialization error:", error);
     done(error);
   }
 });
@@ -122,10 +134,23 @@ export async function setupAuth(app: Express) {
         lastName: lastName || null,
       });
 
+      // Verify user was created with an ID
+      if (!user || !user.id) {
+        console.error("User created but missing ID:", user);
+        return res.status(500).json({ message: "User created but missing ID" });
+      }
+
       // Auto-login after registration
       req.login(user, (err) => {
         if (err) {
-          return res.status(500).json({ message: "Registration successful but login failed" });
+          console.error("Login error after registration:", err);
+          console.error("User object:", { id: user.id, email: user.email });
+          // Still return success - user can login manually
+          return res.status(201).json({ 
+            user, 
+            message: "Registration successful. Please log in.",
+            requiresLogin: true 
+          });
         }
         return res.json({ user, message: "Registration successful" });
       });
