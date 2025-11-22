@@ -38,23 +38,30 @@ export function AppSidebar() {
     queryKey: ["/api/subscription"],
   });
 
-  const handleLogout = async () => {
+  const handleLogout = async (e?: React.MouseEvent) => {
+    e?.preventDefault();
+    e?.stopPropagation();
     setIsLoggingOut(true);
     try {
-      const response = await apiRequest("POST", "/api/logout", {});
-      // Read the response to ensure it completes
-      await response.json();
-      // Clear all queries
+      // Use fetch directly to avoid any routing issues
+      const response = await fetch("https://uk-crm-backend.onrender.com/api/logout", {
+        method: "POST",
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+      
+      // Clear all queries regardless of response
       queryClient.clear();
-      // Small delay to ensure session is cleared
-      setTimeout(() => {
-        window.location.href = "/login";
-      }, 100);
+      
+      // Always redirect to login, even if logout request fails
+      window.location.replace("/login");
     } catch (error) {
       console.error("Logout error:", error);
-      // Still redirect even if logout fails - clear cache and redirect
+      // Clear cache and redirect on error
       queryClient.clear();
-      window.location.href = "/login";
+      window.location.replace("/login");
     }
   };
 
