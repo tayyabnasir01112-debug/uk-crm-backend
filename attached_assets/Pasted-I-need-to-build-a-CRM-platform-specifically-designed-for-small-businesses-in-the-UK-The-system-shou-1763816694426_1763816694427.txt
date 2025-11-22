@@ -1,0 +1,15 @@
+I need to build a CRM platform specifically designed for small businesses in the UK. The system should include modules for creating quotations, delivery challans, invoices, an inventory system, an HR module, and a sales reporting module.
+
+This will be launched as a micro-SaaS product. I plan to integrate Stripe and PayPal for subscription billing later, so you should prepare the full payment architecture but leave the actual API keys empty for me to add later. Users will pay £20/month, with the first 7 days offered as a free trial.
+
+Users should be able to sign up using their email or Google account. During onboarding, they will enter their business information such as business name, address, company logo, header/footer details, CEO digital signature, QR code or payment link, etc. They should also have the option to include these elements in the invoices they generate. Once onboarding is complete, the user gains access to their dashboard with all modules.
+
+Within the dashboard, users can create quotations, delivery challans, and invoices. Each document should have options to download, view, or edit before downloading. They should also be able to toggle the inclusion of digital signatures, headers, and footers.
+
+Many small businesses don’t have a ready-made logo or header/footer, so the system should help them generate a clean, attractive, professional design based on their business information. A preview should be shown, and users can choose to use the auto-generated design or upload their own.
+
+Each business will have its own account where they can manage their subscription (subscribe/unsubscribe), update, add, or remove their payment details, and view how many trial days remain if they are within the free trial period.
+
+The interface should be extremely user-friendly. The homepage should clearly explain what the tool does and how it benefits small businesses. Strong SEO optimization is essential because I want to rank on the first page of Google for terms like “cheap CRM” and similar keywords. SEO will be the main channel for acquiring clients, so everything must follow best SEO practices.
+
+Additionally, I want the platform to be completely free for me to operate. It should be hosted on Netlify and use free-tier databases or services that can comfortably support at least 200 users. My target is to have around 200 clients paying £20/month. The entire system should be set up in a way that fits this zero-cost infrastructure plan. I will connect my custom domain: crmlaunch.co.uk.
