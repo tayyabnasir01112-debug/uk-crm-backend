@@ -54,23 +54,28 @@ passport.use(
           return done(null, false, { message: "Invalid email or password" });
         }
 
+        // Check for password field
         if (!user.password) {
+          console.error("User found but no password field:", { id: user.id, email: user.email });
           return done(null, false, { message: "Please set a password for your account" });
         }
 
         // Verify password
-        // Note: schema uses 'password' field, not 'passwordHash'
-        const userPassword = (user as any).password || (user as any).passwordHash;
-        if (!userPassword) {
-          return done(null, false, { message: "Invalid email or password" });
-        }
-        const isValid = await bcrypt.compare(password, userPassword);
+        const isValid = await bcrypt.compare(password, user.password);
         if (!isValid) {
           return done(null, false, { message: "Invalid email or password" });
         }
 
+        // Verify user has ID
+        if (!user.id) {
+          console.error("User missing ID after password verification:", user);
+          return done(new Error("User data error: missing ID"), null);
+        }
+
         return done(null, user);
-      } catch (error) {
+      } catch (error: any) {
+        console.error("LocalStrategy error:", error);
+        console.error("Error stack:", error?.stack);
         return done(error);
       }
     }
