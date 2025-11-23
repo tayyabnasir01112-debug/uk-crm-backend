@@ -89,7 +89,10 @@ export async function generatePDF(
           doc.text(contact, margin, y);
           y += 16;
         }
-        doc.strokeColor(...primaryRgb).lineWidth(1).moveTo(margin, y).lineTo(pageWidth - margin, y).stroke();
+        // Header separator line - use primary color
+        doc.strokeColor(...primaryRgb);
+        doc.lineWidth(1);
+        doc.moveTo(margin, y).lineTo(pageWidth - margin, y).stroke();
         y += 20;
       }
 
@@ -265,7 +268,8 @@ export async function generatePDF(
       // Footer
       if (options.includeFooter !== false) {
         const footerY = pageHeight - margin - 15;
-        doc.fontSize(8).font('Helvetica').fillColor(...primaryRgb);
+        doc.fillColor(...primaryRgb); // Set color before font properties
+        doc.fontSize(8).font('Helvetica');
         doc.text(
           options.footerText || options.businessName || 'Thank you for your business!',
           margin, footerY, { width: contentWidth, align: 'center' }
