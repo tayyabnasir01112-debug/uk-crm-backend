@@ -72,8 +72,9 @@ export async function generatePDF(
       // Header
       if (options.includeHeader !== false) {
         if (options.businessName) {
+          // Set color FIRST, then font properties, then text
+          doc.fillColor(...primaryRgb);
           doc.fontSize(18).font('Helvetica-Bold');
-          doc.fillColor(...primaryRgb); // Set color explicitly
           doc.text(options.businessName, margin, y);
           y += 24;
         }
@@ -153,12 +154,13 @@ export async function generatePDF(
         const headerHeight = 24;
 
         // Header background - draw rectangle with primary color
+        // IMPORTANT: Set color, fill rectangle, then immediately set white for text
         doc.fillColor(...primaryRgb);
         doc.rect(margin, y, contentWidth, headerHeight).fill();
         
-        // Header text - white on colored background (explicitly set after fill)
+        // Header text - white on colored background
+        doc.fillColor(1, 1, 1); // Set white BEFORE font properties
         doc.fontSize(10).font('Helvetica-Bold');
-        doc.fillColor(1, 1, 1); // Set white color AFTER setting font
         const col1 = margin + 8;
         const col2 = margin + contentWidth * 0.50;
         const col3 = margin + contentWidth * 0.70;
@@ -240,13 +242,13 @@ export async function generatePDF(
         doc.strokeColor(0.7, 0.7, 0.7).lineWidth(1).moveTo(totalsX, y).lineTo(totalsX + 160, y).stroke();
         y += 10;
 
-        // Total - use primary color
-        doc.fontSize(12).font('Helvetica-Bold');
+        // Total - use primary color (set color before font properties)
         doc.fillColor(...primaryRgb);
+        doc.fontSize(12).font('Helvetica-Bold');
         doc.text('Total:', totalsX, y);
         const totalText = `£${total.toFixed(2)}`;
+        doc.fillColor(...primaryRgb); // Ensure color is still set
         doc.fontSize(14);
-        doc.fillColor(...primaryRgb); // Ensure color is set again
         doc.text(totalText, totalsX + 160 - doc.widthOfString(totalText), y);
         y += 25;
       }
