@@ -366,10 +366,6 @@ export async function generatePDF(
   });
 }
 
-function hexToWord(hex: string): string {
-  return hex.replace('#', '');
-}
-
 export async function generateWord(
   document: Quotation | Invoice | DeliveryChallan,
   type: 'quotation' | 'invoice' | 'challan',
