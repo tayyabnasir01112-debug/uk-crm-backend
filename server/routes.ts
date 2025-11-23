@@ -177,7 +177,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.put('/api/invoices/:id', isAuthenticated, async (req: any, res) => {
     try {
-      // Allow partial updates - only validate fields that are present
+      // Allow partial updates - bypass schema validation for simple updates
       const updateData: any = {};
       
       // Handle status update
@@ -185,7 +185,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         updateData.status = req.body.status;
       }
       
-      // Handle paidAt timestamp
+      // Handle paidAt timestamp - convert string to Date
       if (req.body.paidAt !== undefined) {
         updateData.paidAt = req.body.paidAt ? new Date(req.body.paidAt) : null;
       }
@@ -218,6 +218,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       if (req.body.notes !== undefined) updateData.notes = req.body.notes;
       
+      // Directly update without schema validation for partial updates
       const invoice = await storage.updateInvoice(req.params.id, updateData);
       if (!invoice) {
         return res.status(404).json({ message: "Invoice not found" });
