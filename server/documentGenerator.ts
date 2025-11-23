@@ -12,18 +12,6 @@ interface DocumentOptions {
   footerText?: string;
 }
 
-// Helper function to convert hex to RGB for PDFKit
-function hexToRgb(hex: string): [number, number, number] {
-  const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
-  return result
-    ? [
-        parseInt(result[1], 16) / 255,
-        parseInt(result[2], 16) / 255,
-        parseInt(result[3], 16) / 255,
-      ]
-    : [0, 0, 0];
-}
-
 export async function generatePDF(
   document: Quotation | Invoice | DeliveryChallan,
   type: 'quotation' | 'invoice' | 'challan',
@@ -33,11 +21,7 @@ export async function generatePDF(
     try {
       const doc = new PDFDocument({ 
         margin: 50, 
-        size: 'A4',
-        info: {
-          Title: type === 'quotation' ? 'Quotation' : type === 'invoice' ? 'Invoice' : 'Delivery Challan',
-          Author: options.businessName || 'UK Small Business CRM',
-        }
+        size: 'A4'
       });
       const buffers: Buffer[] = [];
 
@@ -59,7 +43,7 @@ export async function generatePDF(
         if (options.businessName) {
           doc.fontSize(24)
              .font('Helvetica-Bold')
-             .fillColor(...hexToRgb('#1e40af'))
+             .fillColor(0.12, 0.25, 0.69) // Blue
              .text(options.businessName, margin, yPosition, {
                width: contentWidth,
                align: 'left'
@@ -70,7 +54,7 @@ export async function generatePDF(
         if (options.businessAddress) {
           doc.fontSize(10)
              .font('Helvetica')
-             .fillColor(0, 0, 0)
+             .fillColor(0, 0, 0) // Black
              .text(options.businessAddress, margin, yPosition, {
                width: contentWidth,
                align: 'left'
@@ -86,7 +70,7 @@ export async function generatePDF(
           
           doc.fontSize(9)
              .font('Helvetica')
-             .fillColor(0.4, 0.4, 0.4)
+             .fillColor(0.4, 0.4, 0.4) // Gray
              .text(contactInfo, margin, yPosition, {
                width: contentWidth,
                align: 'left'
@@ -94,21 +78,24 @@ export async function generatePDF(
           yPosition += 20;
         }
 
-        doc.moveTo(margin, yPosition)
-           .lineTo(pageWidth - margin, yPosition)
-           .strokeColor(0.9, 0.9, 0.9)
+        // Separator line
+        doc.strokeColor(0.9, 0.9, 0.9)
            .lineWidth(1)
+           .moveTo(margin, yPosition)
+           .lineTo(pageWidth - margin, yPosition)
            .stroke();
         yPosition += 20;
       }
 
-      // Document Title Section
+      // Document Title
       const title = type === 'quotation' ? 'QUOTATION' : type === 'invoice' ? 'INVOICE' : 'DELIVERY CHALLAN';
       
+      // Title background
       doc.rect(margin, yPosition, contentWidth, 40)
          .fillColor(0.95, 0.95, 0.95)
          .fill();
       
+      // Title text
       doc.fontSize(20)
          .font('Helvetica-Bold')
          .fillColor(0, 0, 0)
@@ -119,7 +106,7 @@ export async function generatePDF(
       
       yPosition += 50;
 
-      // Document Details Section
+      // Document Details
       const docNumber = type === 'quotation' 
         ? (document as Quotation).quotationNumber
         : type === 'invoice'
@@ -134,7 +121,7 @@ export async function generatePDF(
 
       doc.fontSize(10)
          .font('Helvetica-Bold')
-         .fillColor(0.2, 0.2, 0.2)
+         .fillColor(0, 0, 0)
          .text('Document Number:', margin, yPosition);
       
       doc.fontSize(11)
@@ -144,7 +131,7 @@ export async function generatePDF(
 
       doc.fontSize(10)
          .font('Helvetica-Bold')
-         .fillColor(0.2, 0.2, 0.2)
+         .fillColor(0, 0, 0)
          .text('Date:', pageWidth - margin - 150, yPosition);
       
       doc.fontSize(11)
@@ -156,24 +143,20 @@ export async function generatePDF(
 
       // Paid Stamp for Invoices
       if (type === 'invoice' && (document as Invoice).status === 'paid') {
-        const stampX = pageWidth - margin - 80;
-        const stampY = yPosition;
-        
         doc.save();
-        doc.translate(stampX, stampY)
+        doc.translate(pageWidth - margin - 80, yPosition)
            .rotate(-45)
            .fontSize(32)
            .font('Helvetica-Bold')
-           .fillColor(...hexToRgb('#10b981'))
+           .fillColor(0.06, 0.73, 0.51) // Green
            .text('PAID', 0, 0);
         doc.restore();
-        
         yPosition += 40;
       }
 
       yPosition += 10;
 
-      // Customer Information Section
+      // Customer Information
       doc.fontSize(11)
          .font('Helvetica-Bold')
          .fillColor(0, 0, 0)
@@ -199,22 +182,22 @@ export async function generatePDF(
 
       yPosition += 15;
 
-      // Items Table Section
+      // Items Table
       if (Array.isArray(document.items) && document.items.length > 0) {
         const tableTop = yPosition;
         const rowHeight = 25;
         const headerHeight = 30;
         let currentY = tableTop;
 
-        // Table Header Background
+        // Draw table header background
         doc.rect(margin, currentY, contentWidth, headerHeight)
-           .fillColor(...hexToRgb('#1e40af'))
+           .fillColor(0.12, 0.25, 0.69) // Blue
            .fill();
 
-        // Table Header Text
+        // Header text
         doc.fontSize(10)
            .font('Helvetica-Bold')
-           .fillColor(1, 1, 1);
+           .fillColor(1, 1, 1); // White
 
         const colWidths = type !== 'challan' 
           ? [contentWidth * 0.40, contentWidth * 0.15, contentWidth * 0.20, contentWidth * 0.25]
@@ -236,22 +219,25 @@ export async function generatePDF(
 
         currentY += headerHeight;
 
-        // Table Rows
+        // Table rows
         doc.fontSize(9)
            .font('Helvetica')
-           .fillColor(0, 0, 0);
+           .fillColor(0, 0, 0); // Black
 
         document.items.forEach((item: any, index: number) => {
-          // Alternate row background
+          // Row background for even rows
           if (index % 2 === 0) {
             doc.rect(margin, currentY, contentWidth, rowHeight)
                .fillColor(0.98, 0.98, 0.98)
                .fill();
           }
 
+          // Reset fill color for text
+          doc.fillColor(0, 0, 0);
+
           xPos = margin + 10;
           
-          // Item Name
+          // Item name
           doc.text(item.name || 'N/A', xPos, currentY + 8, {
             width: colWidths[0] - 10
           });
@@ -262,7 +248,7 @@ export async function generatePDF(
           xPos += colWidths[1];
 
           if (type !== 'challan') {
-            // Unit Price
+            // Unit price
             doc.text(`£${(typeof item.unitPrice === 'number' ? item.unitPrice : parseFloat(item.unitPrice || 0)).toFixed(2)}`, xPos, currentY + 8);
             xPos += colWidths[2];
             // Total
@@ -277,16 +263,16 @@ export async function generatePDF(
           currentY += rowHeight;
         });
 
-        // Table Border
-        doc.rect(margin, tableTop, contentWidth, currentY - tableTop)
-           .strokeColor(0.82, 0.82, 0.82)
+        // Table border
+        doc.strokeColor(0.82, 0.82, 0.82)
            .lineWidth(1)
+           .rect(margin, tableTop, contentWidth, currentY - tableTop)
            .stroke();
 
         yPosition = currentY + 20;
       }
 
-      // Totals Section (for quotations and invoices)
+      // Totals Section
       if (type !== 'challan') {
         const docWithTotals = document as Quotation | Invoice;
         const totalsStartX = pageWidth - margin - 200;
@@ -315,42 +301,43 @@ export async function generatePDF(
         // Subtotal
         doc.fontSize(9)
            .font('Helvetica')
-           .fillColor(0.4, 0.4, 0.4)
+           .fillColor(0, 0, 0)
            .text('Subtotal:', totalsStartX, totalsYPos);
         doc.font('Helvetica-Bold')
            .fillColor(0, 0, 0)
            .text(`£${subtotal.toFixed(2)}`, totalsStartX + 100, totalsYPos, { align: 'right' });
         totalsYPos += 15;
 
-        // Tax Rate
+        // Tax
         doc.font('Helvetica')
-           .fillColor(0.4, 0.4, 0.4)
+           .fillColor(0, 0, 0)
            .text(`Tax (${taxRate.toFixed(2)}%):`, totalsStartX, totalsYPos);
         doc.font('Helvetica-Bold')
            .fillColor(0, 0, 0)
            .text(`£${taxAmount.toFixed(2)}`, totalsStartX + 100, totalsYPos, { align: 'right' });
         totalsYPos += 15;
 
-        // Divider line
-        doc.moveTo(totalsStartX, totalsYPos)
-           .lineTo(totalsStartX + 180, totalsYPos)
-           .strokeColor(0.82, 0.82, 0.82)
+        // Divider
+        doc.strokeColor(0.82, 0.82, 0.82)
            .lineWidth(1)
+           .moveTo(totalsStartX, totalsYPos)
+           .lineTo(totalsStartX + 180, totalsYPos)
            .stroke();
         totalsYPos += 10;
 
         // Total
         doc.fontSize(12)
            .font('Helvetica-Bold')
-           .fillColor(...hexToRgb('#1e40af'))
+           .fillColor(0.12, 0.25, 0.69) // Blue
            .text('Total:', totalsStartX, totalsYPos);
         doc.fontSize(14)
+           .fillColor(0.12, 0.25, 0.69)
            .text(`£${total.toFixed(2)}`, totalsStartX + 100, totalsYPos, { align: 'right' });
 
         yPosition = totalsY + 90;
       }
 
-      // Notes Section
+      // Notes
       if (document.notes) {
         yPosition += 10;
         doc.fontSize(10)
@@ -398,7 +385,7 @@ export async function generateWord(
 ): Promise<Buffer> {
   const children: Paragraph[] = [];
 
-  // Header Section
+  // Header
   if (options.includeHeader !== false) {
     if (options.businessName) {
       children.push(
@@ -492,7 +479,7 @@ export async function generateWord(
     })
   );
 
-  // Paid Stamp for Invoices
+  // Paid Stamp
   if (type === 'invoice' && (document as Invoice).status === 'paid') {
     children.push(
       new Paragraph({
@@ -662,7 +649,7 @@ export async function generateWord(
     children.push(new Paragraph({ text: '' }));
   }
 
-  // Totals Section
+  // Totals
   if (type !== 'challan') {
     const docWithTotals = document as Quotation | Invoice;
     const subtotal = typeof docWithTotals.subtotal === 'string' 

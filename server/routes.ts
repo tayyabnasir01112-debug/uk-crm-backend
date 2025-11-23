@@ -177,15 +177,56 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.put('/api/invoices/:id', isAuthenticated, async (req: any, res) => {
     try {
-      const validatedData = insertInvoiceSchema.partial().parse(req.body);
-      const invoice = await storage.updateInvoice(req.params.id, validatedData);
+      // Allow partial updates - only validate fields that are present
+      const updateData: any = {};
+      
+      // Handle status update
+      if (req.body.status !== undefined) {
+        updateData.status = req.body.status;
+      }
+      
+      // Handle paidAt timestamp
+      if (req.body.paidAt !== undefined) {
+        updateData.paidAt = req.body.paidAt ? new Date(req.body.paidAt) : null;
+      }
+      
+      // Handle other fields if present (for full updates)
+      if (req.body.customerName !== undefined) updateData.customerName = req.body.customerName;
+      if (req.body.customerEmail !== undefined) updateData.customerEmail = req.body.customerEmail;
+      if (req.body.customerAddress !== undefined) updateData.customerAddress = req.body.customerAddress;
+      if (req.body.invoiceNumber !== undefined) updateData.invoiceNumber = req.body.invoiceNumber;
+      if (req.body.items !== undefined) updateData.items = req.body.items;
+      if (req.body.subtotal !== undefined) {
+        updateData.subtotal = typeof req.body.subtotal === 'number' 
+          ? req.body.subtotal.toString() 
+          : req.body.subtotal;
+      }
+      if (req.body.taxRate !== undefined) {
+        updateData.taxRate = typeof req.body.taxRate === 'number' 
+          ? req.body.taxRate.toString() 
+          : req.body.taxRate;
+      }
+      if (req.body.taxAmount !== undefined) {
+        updateData.taxAmount = typeof req.body.taxAmount === 'number' 
+          ? req.body.taxAmount.toString() 
+          : req.body.taxAmount;
+      }
+      if (req.body.total !== undefined) {
+        updateData.total = typeof req.body.total === 'number' 
+          ? req.body.total.toString() 
+          : req.body.total;
+      }
+      if (req.body.notes !== undefined) updateData.notes = req.body.notes;
+      
+      const invoice = await storage.updateInvoice(req.params.id, updateData);
       if (!invoice) {
         return res.status(404).json({ message: "Invoice not found" });
       }
       res.json(invoice);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error updating invoice:", error);
-      res.status(500).json({ message: "Failed to update invoice" });
+      console.error("Error details:", error.message, error.stack);
+      res.status(500).json({ message: "Failed to update invoice", error: error.message });
     }
   });
 
