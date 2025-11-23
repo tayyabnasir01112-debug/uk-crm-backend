@@ -20,16 +20,8 @@
   to = "/index.html"
   status = 200
 
-# Sitemap and robots.txt
-[[redirects]]
-  from = "/sitemap.xml"
-  to = "/sitemap.xml"
-  status = 200
-
-[[redirects]]
-  from = "/robots.txt"
-  to = "/robots.txt"
-  status = 200
+# Sitemap and robots.txt - serve directly from public folder
+# These files are in client/public/ and will be copied to dist/public/ during build
 
 # API proxy (if backend is on a different domain)
 # Uncomment and update with your Render backend URL
