@@ -25,6 +25,15 @@ function hexToWord(hex: string): string {
   return hex.replace('#', '');
 }
 
+function parseDecimal(value: any): number {
+  if (typeof value === 'number') return value;
+  if (typeof value === 'string') {
+    const parsed = parseFloat(value);
+    return isNaN(parsed) ? 0 : parsed;
+  }
+  return 0;
+}
+
 export async function generatePDF(
   document: Quotation | Invoice | DeliveryChallan,
   type: 'quotation' | 'invoice' | 'challan',
@@ -117,6 +126,11 @@ export async function generatePDF(
       }
       y += 20;
 
+      // Calculate totals from items if needed
+      let calculatedSubtotal = 0;
+      let calculatedTaxAmount = 0;
+      let calculatedTotal = 0;
+
       // Items Table
       if (Array.isArray(document.items) && document.items.length > 0) {
         const tableStartY = y;
@@ -142,19 +156,25 @@ export async function generatePDF(
         }
         y += headerHeight;
 
-        // Rows
+        // Rows - Calculate item totals
         doc.fontSize(9).font('Helvetica').fillColor(0, 0, 0);
         document.items.forEach((item: any) => {
           const itemName = item.name || 'N/A';
-          const quantity = String(item.quantity || 0);
+          const quantity = parseDecimal(item.quantity);
+          const unitPrice = parseDecimal(item.unitPrice);
+          
+          // Calculate item total if missing or 0
+          let itemTotal = parseDecimal(item.total);
+          if (itemTotal === 0 && unitPrice > 0 && quantity > 0) {
+            itemTotal = unitPrice * quantity;
+          }
+          
+          calculatedSubtotal += itemTotal;
           
           doc.text(itemName, col1, y + 5, { width: col2 - col1 - 10 });
-          doc.text(quantity, col2, y + 5);
+          doc.text(String(quantity), col2, y + 5);
           
           if (type !== 'challan') {
-            const unitPrice = typeof item.unitPrice === 'number' ? item.unitPrice : parseFloat(String(item.unitPrice || 0));
-            const itemTotal = typeof item.total === 'number' ? item.total : parseFloat(String(item.total || 0));
-            
             const priceText = `£${unitPrice.toFixed(2)}`;
             doc.text(priceText, col3 - doc.widthOfString(priceText), y + 5);
             
@@ -174,13 +194,24 @@ export async function generatePDF(
         y += 20;
       }
 
-      // Totals
+      // Totals - Use calculated values if document totals are 0
       if (type !== 'challan') {
         const docWithTotals = document as Quotation | Invoice;
-        const subtotal = typeof docWithTotals.subtotal === 'string' ? parseFloat(docWithTotals.subtotal) : (docWithTotals.subtotal || 0);
-        const taxRate = typeof docWithTotals.taxRate === 'string' ? parseFloat(docWithTotals.taxRate) : (docWithTotals.taxRate || 0);
-        const taxAmount = typeof docWithTotals.taxAmount === 'string' ? parseFloat(docWithTotals.taxAmount) : (docWithTotals.taxAmount || 0);
-        const total = typeof docWithTotals.total === 'string' ? parseFloat(docWithTotals.total) : (docWithTotals.total || 0);
+        let subtotal = parseDecimal(docWithTotals.subtotal);
+        const taxRate = parseDecimal(docWithTotals.taxRate);
+        let taxAmount = parseDecimal(docWithTotals.taxAmount);
+        let total = parseDecimal(docWithTotals.total);
+
+        // Recalculate if totals are 0 or missing
+        if (subtotal === 0 && calculatedSubtotal > 0) {
+          subtotal = calculatedSubtotal;
+        }
+        if (taxAmount === 0 && subtotal > 0 && taxRate > 0) {
+          taxAmount = subtotal * (taxRate / 100);
+        }
+        if (total === 0 && subtotal > 0) {
+          total = subtotal + taxAmount;
+        }
 
         const totalsX = pageWidth - margin - 180;
         
@@ -244,6 +275,15 @@ export async function generateWord(
   const primaryColor = options.primaryColor || '#1e40af';
   const primaryColorWord = hexToWord(primaryColor);
 
+  function parseDecimal(value: any): number {
+    if (typeof value === 'number') return value;
+    if (typeof value === 'string') {
+      const parsed = parseFloat(value);
+      return isNaN(parsed) ? 0 : parsed;
+    }
+    return 0;
+  }
+
   // Header
   if (options.includeHeader !== false) {
     if (options.businessName) {
@@ -306,6 +346,9 @@ export async function generateWord(
   }
   children.push(new Paragraph({ text: '' }));
 
+  // Calculate totals from items
+  let calculatedSubtotal = 0;
+
   // Items Table
   if (Array.isArray(document.items) && document.items.length > 0) {
     const tableRows: TableRow[] = [];
@@ -351,16 +394,25 @@ export async function generateWord(
     }
     tableRows.push(new TableRow({ children: headerCells }));
 
-    // Data Rows
+    // Data Rows - Calculate item totals
     document.items.forEach((item: any) => {
+      const quantity = parseDecimal(item.quantity);
+      const unitPrice = parseDecimal(item.unitPrice);
+      
+      // Calculate item total if missing or 0
+      let itemTotal = parseDecimal(item.total);
+      if (itemTotal === 0 && unitPrice > 0 && quantity > 0) {
+        itemTotal = unitPrice * quantity;
+      }
+      
+      calculatedSubtotal += itemTotal;
+      
       const cells = [
         new TableCell({ children: [new Paragraph({ text: item.name || 'N/A' })] }),
-        new TableCell({ children: [new Paragraph({ text: String(item.quantity || 0) })] }),
+        new TableCell({ children: [new Paragraph({ text: String(quantity) })] }),
       ];
       
       if (type !== 'challan') {
-        const unitPrice = typeof item.unitPrice === 'number' ? item.unitPrice : parseFloat(String(item.unitPrice || 0));
-        const itemTotal = typeof item.total === 'number' ? item.total : parseFloat(String(item.total || 0));
         cells.push(
           new TableCell({ children: [new Paragraph({ text: `£${unitPrice.toFixed(2)}` })] }),
           new TableCell({
@@ -390,13 +442,24 @@ export async function generateWord(
     children.push(new Paragraph({ text: '' }));
   }
 
-  // Totals
+  // Totals - Use calculated values if document totals are 0
   if (type !== 'challan') {
     const docWithTotals = document as Quotation | Invoice;
-    const subtotal = typeof docWithTotals.subtotal === 'string' ? parseFloat(docWithTotals.subtotal) : (docWithTotals.subtotal || 0);
-    const taxRate = typeof docWithTotals.taxRate === 'string' ? parseFloat(docWithTotals.taxRate) : (docWithTotals.taxRate || 0);
-    const taxAmount = typeof docWithTotals.taxAmount === 'string' ? parseFloat(docWithTotals.taxAmount) : (docWithTotals.taxAmount || 0);
-    const total = typeof docWithTotals.total === 'string' ? parseFloat(docWithTotals.total) : (docWithTotals.total || 0);
+    let subtotal = parseDecimal(docWithTotals.subtotal);
+    const taxRate = parseDecimal(docWithTotals.taxRate);
+    let taxAmount = parseDecimal(docWithTotals.taxAmount);
+    let total = parseDecimal(docWithTotals.total);
+
+    // Recalculate if totals are 0 or missing
+    if (subtotal === 0 && calculatedSubtotal > 0) {
+      subtotal = calculatedSubtotal;
+    }
+    if (taxAmount === 0 && subtotal > 0 && taxRate > 0) {
+      taxAmount = subtotal * (taxRate / 100);
+    }
+    if (total === 0 && subtotal > 0) {
+      total = subtotal + taxAmount;
+    }
 
     children.push(new Paragraph({
       children: [new TextRun({ text: 'Subtotal: ' }), new TextRun({ text: `£${subtotal.toFixed(2)}`, bold: true })],
