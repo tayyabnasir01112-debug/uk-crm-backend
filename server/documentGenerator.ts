@@ -1,4 +1,5 @@
-import PDFDocument from 'pdfkit';
+// import PDFDocument from 'pdfkit'; // Replaced with pdfmake
+import PdfPrinter from 'pdfmake';
 import { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell, WidthType, AlignmentType, BorderStyle } from 'docx';
 import type { Quotation, Invoice, DeliveryChallan } from '@shared/schema';
 
@@ -13,25 +14,15 @@ interface DocumentOptions {
   primaryColor?: string;
 }
 
-function hexToRgb(hex: string): [number, number, number] {
+function hexToRgb(hex: string): string {
   let cleanHex = hex.replace('#', '').trim();
-  // Handle 3-digit hex codes
   if (cleanHex.length === 3) {
     cleanHex = cleanHex.split('').map(c => c + c).join('');
   }
-  // Ensure we have 6 characters
   if (cleanHex.length !== 6) {
-    // Default to blue if invalid
-    return [0.12, 0.25, 0.69];
+    return '#1e40af'; // Default blue
   }
-  const r = parseInt(cleanHex.substring(0, 2), 16) / 255;
-  const g = parseInt(cleanHex.substring(2, 4), 16) / 255;
-  const b = parseInt(cleanHex.substring(4, 6), 16) / 255;
-  // Validate RGB values
-  if (isNaN(r) || isNaN(g) || isNaN(b)) {
-    return [0.12, 0.25, 0.69]; // Default blue
-  }
-  return [r, g, b];
+  return `#${cleanHex}`;
 }
 
 function hexToWord(hex: string): string {
@@ -52,246 +43,236 @@ export async function generatePDF(
   type: 'quotation' | 'invoice' | 'challan',
   options: DocumentOptions = {}
 ): Promise<Buffer> {
-  return new Promise((resolve, reject) => {
-    try {
-      const doc = new PDFDocument({ margin: 50, size: 'A4' });
-      const buffers: Buffer[] = [];
-      doc.on('data', buffers.push.bind(buffers));
-      doc.on('end', () => resolve(Buffer.concat(buffers)));
-      doc.on('error', reject);
-
-      const pageWidth = doc.page.width;
-      const pageHeight = doc.page.height;
-      const margin = 50;
-      const contentWidth = pageWidth - (margin * 2);
-      const primaryColor = options.primaryColor || '#1e40af';
-      const primaryRgb = hexToRgb(primaryColor);
-      console.log('PDF Generation - Primary Color:', primaryColor, 'RGB:', primaryRgb);
-      
-      // Verify RGB values are valid (0-1 range)
-      if (primaryRgb.some(v => v < 0 || v > 1 || isNaN(v))) {
-        console.error('Invalid RGB values:', primaryRgb, 'from color:', primaryColor);
-      }
-      let y = margin;
-
-      // Header
-      if (options.includeHeader !== false) {
-        if (options.businessName) {
-          // Set color and font, then draw text
-          doc.fillColor(primaryRgb[0], primaryRgb[1], primaryRgb[2]);
-          doc.fontSize(18);
-          doc.font('Helvetica-Bold');
-          doc.text(options.businessName, margin, y);
-          y += 24;
-        }
-        if (options.businessAddress) {
-          doc.fontSize(10).font('Helvetica').fillColor(0, 0, 0);
-          doc.text(options.businessAddress, margin, y);
-          y += 14;
-        }
-        if (options.businessEmail || options.businessPhone) {
-          const contact = [options.businessEmail, options.businessPhone].filter(Boolean).join(' | ');
-          doc.fontSize(9).font('Helvetica').fillColor(0.5, 0.5, 0.5);
-          doc.text(contact, margin, y);
-          y += 16;
-        }
-        // Header separator line - use primary color
-        doc.strokeColor(primaryRgb[0], primaryRgb[1], primaryRgb[2]);
-        doc.lineWidth(1);
-        doc.moveTo(margin, y).lineTo(pageWidth - margin, y).stroke();
-        y += 20;
-      }
-
-      // Title
-      const title = type === 'quotation' ? 'QUOTATION' : type === 'invoice' ? 'INVOICE' : 'DELIVERY CHALLAN';
-      doc.fontSize(20).font('Helvetica-Bold').fillColor(0, 0, 0);
-      doc.text(title, margin, y, { align: 'center', width: contentWidth });
-      y += 30;
-
-      // Document Info
-      const docNumber = type === 'quotation' 
-        ? (document as Quotation).quotationNumber
-        : type === 'invoice'
-        ? (document as Invoice).invoiceNumber
-        : (document as DeliveryChallan).challanNumber;
-      const docDate = new Date(document.createdAt!).toLocaleDateString('en-GB', {
-        day: '2-digit', month: 'long', year: 'numeric'
-      });
-
-      doc.fontSize(10).font('Helvetica').fillColor(0, 0, 0);
-      doc.text(`Document Number: ${docNumber}`, margin, y);
-      const dateText = `Date: ${docDate}`;
-      doc.text(dateText, pageWidth - margin - doc.widthOfString(dateText), y);
-      y += 25;
-
-      // Paid Stamp
-      if (type === 'invoice' && (document as Invoice).status === 'paid') {
-        doc.save();
-        doc.translate(pageWidth - margin - 60, y + 25).rotate(-45);
-        doc.fontSize(30).font('Helvetica-Bold').fillColor(0.06, 0.73, 0.51);
-        doc.text('PAID', 0, 0);
-        doc.restore();
-      }
-      y += 20;
-
-      // Bill To
-      doc.fontSize(11).font('Helvetica-Bold').fillColor(0, 0, 0);
-      doc.text('Bill To:', margin, y);
-      y += 15;
-      doc.fontSize(10).font('Helvetica').fillColor(0, 0, 0);
-      doc.text(document.customerName, margin, y);
-      y += 12;
-      if (document.customerAddress) {
-        doc.text(document.customerAddress, margin, y);
-        y += 12;
-      }
-      if ('customerEmail' in document && document.customerEmail) {
-        doc.text(document.customerEmail, margin, y);
-        y += 12;
-      }
-      y += 20;
-
-      // Calculate totals from items if needed
-      let calculatedSubtotal = 0;
-      let calculatedTaxAmount = 0;
-      let calculatedTotal = 0;
-
-      // Items Table
-      if (Array.isArray(document.items) && document.items.length > 0) {
-        const tableStartY = y;
-        const rowHeight = 20;
-        const headerHeight = 24;
-
-        // Header background - draw rectangle with primary color
-        // Set fill color explicitly, then draw and fill rectangle
-        doc.fillColor(primaryRgb[0], primaryRgb[1], primaryRgb[2]);
-        doc.rect(margin, y, contentWidth, headerHeight);
-        doc.fill();
-        
-        // Header text - white on colored background
-        // Reset fill color to white for text
-        doc.fillColor(1, 1, 1);
-        doc.fontSize(10).font('Helvetica-Bold');
-        const col1 = margin + 8;
-        const col2 = margin + contentWidth * 0.50;
-        const col3 = margin + contentWidth * 0.70;
-        const col4 = margin + contentWidth * 0.90;
-        doc.text('Item', col1, y + 6);
-        doc.text('Qty', col2, y + 6);
-        if (type !== 'challan') {
-          doc.text('Price', col3, y + 6);
-          doc.text('Total', col4 - doc.widthOfString('Total'), y + 6);
-        } else {
-          doc.text('Unit', col3, y + 6);
-        }
-        y += headerHeight;
-
-        // Rows - Calculate item totals
-        doc.fontSize(9).font('Helvetica').fillColor(0, 0, 0);
-        document.items.forEach((item: any) => {
-          const itemName = item.name || 'N/A';
-          const quantity = parseDecimal(item.quantity);
-          const unitPrice = parseDecimal(item.unitPrice);
-          
-          // Calculate item total if missing or 0
-          let itemTotal = parseDecimal(item.total);
-          if (itemTotal === 0 && unitPrice > 0 && quantity > 0) {
-            itemTotal = unitPrice * quantity;
-          }
-          
-          calculatedSubtotal += itemTotal;
-          
-          doc.text(itemName, col1, y + 5, { width: col2 - col1 - 10 });
-          doc.text(String(quantity), col2, y + 5);
-          
-          if (type !== 'challan') {
-            const priceText = `£${unitPrice.toFixed(2)}`;
-            doc.text(priceText, col3 - doc.widthOfString(priceText), y + 5);
-            
-            const totalText = `£${itemTotal.toFixed(2)}`;
-            doc.font('Helvetica-Bold');
-            doc.text(totalText, col4 - doc.widthOfString(totalText), y + 5);
-            doc.font('Helvetica');
-          } else {
-            doc.text(item.unit || 'pcs', col3, y + 5);
-          }
-          y += rowHeight;
-        });
-
-        // Border
-        doc.strokeColor(0.8, 0.8, 0.8).lineWidth(0.5);
-        doc.rect(margin, tableStartY, contentWidth, y - tableStartY).stroke();
-        y += 20;
-      }
-
-      // Totals - Always calculate from items to ensure accuracy
-      if (type !== 'challan') {
-        const docWithTotals = document as Quotation | Invoice;
-        const taxRate = parseDecimal(docWithTotals.taxRate) || 20;
-        
-        // Always use calculated subtotal from items
-        const subtotal = calculatedSubtotal > 0 ? calculatedSubtotal : parseDecimal(docWithTotals.subtotal);
-        const taxAmount = subtotal * (taxRate / 100);
-        const total = subtotal + taxAmount;
-
-        const totalsX = pageWidth - margin - 180;
-        
-        doc.fontSize(10).font('Helvetica').fillColor(0, 0, 0);
-        doc.text('Subtotal:', totalsX, y);
-        const subtotalText = `£${subtotal.toFixed(2)}`;
-        doc.font('Helvetica-Bold');
-        doc.text(subtotalText, totalsX + 160 - doc.widthOfString(subtotalText), y);
-        y += 16;
-
-        doc.font('Helvetica').fillColor(0, 0, 0);
-        doc.text(`Tax (${taxRate.toFixed(2)}%):`, totalsX, y);
-        const taxText = `£${taxAmount.toFixed(2)}`;
-        doc.font('Helvetica-Bold');
-        doc.text(taxText, totalsX + 160 - doc.widthOfString(taxText), y);
-        y += 16;
-
-        doc.strokeColor(0.7, 0.7, 0.7).lineWidth(1).moveTo(totalsX, y).lineTo(totalsX + 160, y).stroke();
-        y += 10;
-
-        // Total - use primary color
-        doc.fillColor(primaryRgb[0], primaryRgb[1], primaryRgb[2]);
-        doc.fontSize(12);
-        doc.font('Helvetica-Bold');
-        doc.text('Total:', totalsX, y);
-        const totalText = `£${total.toFixed(2)}`;
-        doc.fillColor(primaryRgb[0], primaryRgb[1], primaryRgb[2]); // Ensure color is still set
-        doc.fontSize(14);
-        doc.text(totalText, totalsX + 160 - doc.widthOfString(totalText), y);
-        y += 25;
-      }
-
-      // Notes
-      if (document.notes) {
-        doc.fontSize(10).font('Helvetica-Bold').fillColor(0, 0, 0);
-        doc.text('Notes:', margin, y);
-        y += 14;
-        doc.fontSize(9).font('Helvetica').fillColor(0, 0, 0);
-        doc.text(document.notes, margin, y, { width: contentWidth });
-      }
-
-      // Footer
-      if (options.includeFooter !== false) {
-        const footerY = pageHeight - margin - 15;
-        doc.fillColor(primaryRgb[0], primaryRgb[1], primaryRgb[2]);
-        doc.fontSize(8);
-        doc.font('Helvetica');
-        doc.text(
-          options.footerText || options.businessName || 'Thank you for your business!',
-          margin, footerY, { width: contentWidth, align: 'center' }
-        );
-      }
-
-      doc.end();
-    } catch (error) {
-      reject(error);
-    }
+  const primaryColor = options.primaryColor || '#1e40af';
+  const primaryColorHex = hexToRgb(primaryColor);
+  
+  const docNumber = type === 'quotation' 
+    ? (document as Quotation).quotationNumber
+    : type === 'invoice'
+    ? (document as Invoice).invoiceNumber
+    : (document as DeliveryChallan).challanNumber;
+  const docDate = new Date(document.createdAt!).toLocaleDateString('en-GB', {
+    day: '2-digit', month: 'long', year: 'numeric'
   });
-}
+
+  const title = type === 'quotation' ? 'QUOTATION' : type === 'invoice' ? 'INVOICE' : 'DELIVERY CHALLAN';
+
+  // Calculate totals
+  let calculatedSubtotal = 0;
+  if (Array.isArray(document.items) && document.items.length > 0) {
+    document.items.forEach((item: any) => {
+      const quantity = parseDecimal(item.quantity);
+      const unitPrice = parseDecimal(item.unitPrice);
+      let itemTotal = parseDecimal(item.total);
+      if (itemTotal === 0 && unitPrice > 0 && quantity > 0) {
+        itemTotal = unitPrice * quantity;
+      }
+      calculatedSubtotal += itemTotal;
+    });
+  }
+
+  let subtotal = calculatedSubtotal;
+  let taxAmount = 0;
+  let total = subtotal;
+  
+  if (type !== 'challan') {
+    const docWithTotals = document as Quotation | Invoice;
+    const taxRate = parseDecimal(docWithTotals.taxRate) || 20;
+    if (subtotal === 0) {
+      subtotal = parseDecimal(docWithTotals.subtotal);
+    }
+    taxAmount = subtotal * (taxRate / 100);
+    total = subtotal + taxAmount;
+  }
+
+  const docDefinition: any = {
+    pageSize: 'A4',
+    pageMargins: [50, 50, 50, 50],
+    content: [],
+    defaultStyle: {
+      font: 'Helvetica',
+      fontSize: 10,
+      color: '#000000'
+    }
+  };
+
+  // Header
+  if (options.includeHeader !== false) {
+    const headerContent: any[] = [];
+    
+    if (options.businessName) {
+      headerContent.push({
+        text: options.businessName,
+        fontSize: 18,
+        bold: true,
+        color: primaryColorHex,
+        margin: [0, 0, 0, 4]
+      });
+    }
+    
+    if (options.businessAddress) {
+      headerContent.push({
+        text: options.businessAddress,
+        fontSize: 10,
+        margin: [0, 0, 0, 2]
+      });
+    }
+    
+    if (options.businessEmail || options.businessPhone) {
+      const contact = [options.businessEmail, options.businessPhone].filter(Boolean).join(' | ');
+      headerContent.push({
+        text: contact,
+        fontSize: 9,
+        color: '#808080',
+        margin: [0, 0, 0, 8]
+      });
+    }
+    
+    headerContent.push({
+      canvas: [{
+        type: 'line',
+        x1: 0,
+        y1: 0,
+        x2: 515,
+        y2: 0,
+        lineWidth: 1,
+        lineColor: primaryColorHex
+      }],
+      margin: [0, 0, 0, 20]
+    });
+    
+    docDefinition.content.push(...headerContent);
+  }
+
+  // Title
+  docDefinition.content.push({
+    text: title,
+    fontSize: 20,
+    bold: true,
+    alignment: 'center',
+    margin: [0, 0, 0, 30]
+  });
+
+  // Document Info
+  docDefinition.content.push({
+    columns: [
+      {
+        text: `Document Number: ${docNumber}`,
+        fontSize: 10
+      },
+      {
+        text: `Date: ${docDate}`,
+        fontSize: 10,
+        alignment: 'right'
+      }
+    ],
+    margin: [0, 0, 0, 25]
+  });
+
+  // Paid Stamp
+  if (type === 'invoice' && (document as Invoice).status === 'paid') {
+    docDefinition.content.push({
+      text: 'PAID',
+      fontSize: 30,
+      bold: true,
+      color: '#10B981',
+      absolutePosition: { x: 450, y: 200 },
+      angle: -45,
+      opacity: 0.3
+    });
+  }
+
+  // Bill To
+  const billToContent: any[] = [
+    {
+      text: 'Bill To:',
+      fontSize: 11,
+      bold: true,
+      margin: [0, 0, 0, 4]
+    },
+    {
+      text: document.customerName,
+      fontSize: 10,
+      margin: [0, 0, 0, 2]
+    }
+  ];
+  
+  if (document.customerAddress) {
+    billToContent.push({
+      text: document.customerAddress,
+      fontSize: 10,
+      margin: [0, 0, 0, 2]
+    });
+  }
+  
+  if ('customerEmail' in document && document.customerEmail) {
+    billToContent.push({
+      text: document.customerEmail,
+      fontSize: 10,
+      margin: [0, 0, 0, 20]
+    });
+  } else {
+    billToContent[billToContent.length - 1].margin = [0, 0, 0, 20];
+  }
+  
+  docDefinition.content.push(...billToContent);
+
+  // Items Table
+  if (Array.isArray(document.items) && document.items.length > 0) {
+    const tableBody: any[] = [];
+    
+    // Header row
+    const headerRow: any[] = [
+      { text: 'Item', fillColor: primaryColorHex, color: '#FFFFFF', bold: true },
+      { text: 'Qty', fillColor: primaryColorHex, color: '#FFFFFF', bold: true }
+    ];
+    
+    if (type !== 'challan') {
+      headerRow.push(
+        { text: 'Price', fillColor: primaryColorHex, color: '#FFFFFF', bold: true, alignment: 'right' },
+        { text: 'Total', fillColor: primaryColorHex, color: '#FFFFFF', bold: true, alignment: 'right' }
+      );
+    } else {
+      headerRow.push({ text: 'Unit', fillColor: primaryColorHex, color: '#FFFFFF', bold: true });
+    }
+    
+    tableBody.push(headerRow);
+    
+    // Data rows
+    document.items.forEach((item: any) => {
+      const quantity = parseDecimal(item.quantity);
+      const unitPrice = parseDecimal(item.unitPrice);
+      let itemTotal = parseDecimal(item.total);
+      if (itemTotal === 0 && unitPrice > 0 && quantity > 0) {
+        itemTotal = unitPrice * quantity;
+      }
+      
+      const row: any[] = [
+        { text: item.name || 'N/A' },
+        { text: String(quantity) }
+      ];
+      
+      if (type !== 'challan') {
+        row.push(
+          { text: `£${unitPrice.toFixed(2)}`, alignment: 'right' },
+          { text: `£${itemTotal.toFixed(2)}`, alignment: 'right', bold: true }
+        );
+      } else {
+        row.push({ text: item.unit || 'pcs' });
+      }
+      
+      tableBody.push(row);
+    });
+    
+    docDefinition.content.push({
+      table: {
+        headerRows: 1,
+        widths: type !== 'challan' ? ['*', 'auto', 'auto', 'auto'] : ['*', 'auto', 'auto'],
+        body: tableBody
+      },
+      margin: [0, 0, 0, 20]
+    });
+  }
 
 export async function generateWord(
   document: Quotation | Invoice | DeliveryChallan,
