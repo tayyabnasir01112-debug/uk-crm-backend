@@ -1,6 +1,6 @@
 // import PDFDocument from 'pdfkit'; // Replaced with pdfmake
 import PdfPrinter from 'pdfmake';
-import { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell, WidthType, AlignmentType, BorderStyle } from 'docx';
+import { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell, WidthType, AlignmentType, BorderStyle, Footer, Section } from 'docx';
 import type { Quotation, Invoice, DeliveryChallan } from '@shared/schema';
 
 interface DocumentOptions {
@@ -409,7 +409,7 @@ export async function generateWord(
     spacing: { after: 200 },
   }));
 
-  // Document Info
+  // Document Info - Document Number on left, Date on right
   const docNumber = type === 'quotation'
     ? (document as Quotation).quotationNumber
     : type === 'invoice'
@@ -418,8 +418,14 @@ export async function generateWord(
   const docDate = new Date(document.createdAt!).toLocaleDateString('en-GB', {
     day: '2-digit', month: 'long', year: 'numeric'
   });
+  // Use tabs to align date to the right
   children.push(new Paragraph({
-    children: [new TextRun({ text: `Document Number: ${docNumber}  |  Date: ${docDate}` })],
+    children: [
+      new TextRun({ text: `Document Number: ${docNumber}` }),
+      new TextRun({ text: '\t' }),
+      new TextRun({ text: `Date: ${docDate}` })
+    ],
+    tabStops: [{ type: 'right', position: 9000 }],
     spacing: { after: 200 },
   }));
 
