@@ -871,14 +871,23 @@ export default function Invoices() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {selectedInvoice.items.map((item: any, index: number) => (
-                        <TableRow key={index}>
-                          <TableCell>{item.name || "N/A"}</TableCell>
-                          <TableCell>{item.quantity || 0}</TableCell>
-                          <TableCell>£{typeof item.unitPrice === 'number' ? item.unitPrice.toFixed(2) : parseFloat(item.unitPrice || 0).toFixed(2)}</TableCell>
-                          <TableCell className="text-right">£{typeof item.total === 'number' ? item.total.toFixed(2) : parseFloat(item.total || 0).toFixed(2)}</TableCell>
-                        </TableRow>
-                      ))}
+                      {selectedInvoice.items.map((item: any, index: number) => {
+                        // Calculate item total if missing or 0
+                        const quantity = typeof item.quantity === 'number' ? item.quantity : parseFloat(item.quantity || 0);
+                        const unitPrice = typeof item.unitPrice === 'number' ? item.unitPrice : parseFloat(item.unitPrice || 0);
+                        let itemTotal = typeof item.total === 'number' ? item.total : parseFloat(item.total || 0);
+                        if (itemTotal === 0 && unitPrice > 0 && quantity > 0) {
+                          itemTotal = unitPrice * quantity;
+                        }
+                        return (
+                          <TableRow key={index}>
+                            <TableCell>{item.name || "N/A"}</TableCell>
+                            <TableCell>{quantity}</TableCell>
+                            <TableCell>£{unitPrice.toFixed(2)}</TableCell>
+                            <TableCell className="text-right">£{itemTotal.toFixed(2)}</TableCell>
+                          </TableRow>
+                        );
+                      })}
                     </TableBody>
                   </Table>
                 </div>
