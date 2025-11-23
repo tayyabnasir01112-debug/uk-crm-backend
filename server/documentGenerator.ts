@@ -118,16 +118,16 @@ export async function generatePDF(
       }
       y += 20;
 
-      // Items Table
+      // Items Table - SIMPLIFIED: No alternating backgrounds
       if (Array.isArray(document.items) && document.items.length > 0) {
         const tableStartY = y;
         const rowHeight = 20;
         const headerHeight = 24;
 
-        // Draw header background FIRST
+        // Header background
         doc.rect(margin, y, contentWidth, headerHeight).fillColor(...primaryRgb).fill();
         
-        // Then draw header text
+        // Header text
         doc.fontSize(10).font('Helvetica-Bold').fillColor(1, 1, 1);
         const col1 = margin + 8;
         const col2 = margin + contentWidth * 0.50;
@@ -144,17 +144,9 @@ export async function generatePDF(
         }
         y += headerHeight;
 
-        // Draw rows
-        doc.fontSize(9).font('Helvetica');
-        document.items.forEach((item: any, idx: number) => {
-          // Draw row background FIRST
-          if (idx % 2 === 0) {
-            doc.rect(margin, y, contentWidth, rowHeight).fillColor(0.97, 0.97, 0.97).fill();
-          }
-          
-          // Then draw text - ALWAYS reset fill color after drawing background
-          doc.fillColor(0, 0, 0);
-          
+        // Rows - NO BACKGROUNDS, just text
+        doc.fontSize(9).font('Helvetica').fillColor(0, 0, 0);
+        document.items.forEach((item: any) => {
           doc.text(item.name || 'N/A', col1, y + 5, { width: col2 - col1 - 10 });
           doc.text(String(item.quantity || 0), col2, y + 5);
           
@@ -173,7 +165,7 @@ export async function generatePDF(
           y += rowHeight;
         });
 
-        // Draw border LAST
+        // Border
         doc.strokeColor(0.8, 0.8, 0.8).lineWidth(0.5);
         doc.rect(margin, tableStartY, contentWidth, y - tableStartY).stroke();
         y += 20;
@@ -190,10 +182,10 @@ export async function generatePDF(
         const totalsX = pageWidth - margin - 180;
         const totalsY = y;
         
-        // Draw background FIRST
+        // Background
         doc.rect(totalsX - 10, totalsY, 180, 75).fillColor(0.98, 0.98, 0.98).fill();
 
-        // Then draw text - ALWAYS reset fill color
+        // Text
         let ty = totalsY + 10;
         doc.fontSize(10).font('Helvetica').fillColor(0, 0, 0);
         doc.text('Subtotal:', totalsX, ty);
@@ -354,37 +346,24 @@ export async function generateWord(
     }
     tableRows.push(new TableRow({ children: headerCells }));
 
-    document.items.forEach((item: any, index: number) => {
+    document.items.forEach((item: any) => {
       const cells = [
-        new TableCell({
-          children: [new Paragraph({ text: item.name || 'N/A' })],
-          shading: index % 2 === 0 ? { fill: 'f5f5f5' } : undefined,
-        }),
-        new TableCell({
-          children: [new Paragraph({ text: String(item.quantity || 0) })],
-          shading: index % 2 === 0 ? { fill: 'f5f5f5' } : undefined,
-        }),
+        new TableCell({ children: [new Paragraph({ text: item.name || 'N/A' })] }),
+        new TableCell({ children: [new Paragraph({ text: String(item.quantity || 0) })] }),
       ];
       if (type !== 'challan') {
         const price = typeof item.unitPrice === 'number' ? item.unitPrice : parseFloat(item.unitPrice || 0);
         const total = typeof item.total === 'number' ? item.total : parseFloat(item.total || 0);
         cells.push(
-          new TableCell({
-            children: [new Paragraph({ text: `£${price.toFixed(2)}` })],
-            shading: index % 2 === 0 ? { fill: 'f5f5f5' } : undefined,
-          }),
+          new TableCell({ children: [new Paragraph({ text: `£${price.toFixed(2)}` })] }),
           new TableCell({
             children: [new Paragraph({
               children: [new TextRun({ text: `£${total.toFixed(2)}`, bold: true })],
             })],
-            shading: index % 2 === 0 ? { fill: 'f5f5f5' } : undefined,
           })
         );
       } else {
-        cells.push(new TableCell({
-          children: [new Paragraph({ text: item.unit || 'pcs' })],
-          shading: index % 2 === 0 ? { fill: 'f5f5f5' } : undefined,
-        }));
+        cells.push(new TableCell({ children: [new Paragraph({ text: item.unit || 'pcs' })] }));
       }
       tableRows.push(new TableRow({ children: cells }));
     });
