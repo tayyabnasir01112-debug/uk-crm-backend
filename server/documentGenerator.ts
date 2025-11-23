@@ -137,11 +137,13 @@ export async function generatePDF(
         const rowHeight = 20;
         const headerHeight = 24;
 
-        // Header background
-        doc.rect(margin, y, contentWidth, headerHeight).fillColor(...primaryRgb).fill();
+        // Header background - draw rectangle with primary color
+        doc.fillColor(...primaryRgb);
+        doc.rect(margin, y, contentWidth, headerHeight).fill();
         
-        // Header text
-        doc.fontSize(10).font('Helvetica-Bold').fillColor(1, 1, 1);
+        // Header text - white on colored background
+        doc.fillColor(1, 1, 1);
+        doc.fontSize(10).font('Helvetica-Bold');
         const col1 = margin + 8;
         const col2 = margin + contentWidth * 0.50;
         const col3 = margin + contentWidth * 0.70;
