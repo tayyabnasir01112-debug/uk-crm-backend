@@ -809,6 +809,62 @@ export default function Quotations() {
                         >
                           <Download className="h-4 w-4" />
                         </Button>
+                        {/* Standalone Download Dialog for Actions Column */}
+                        <Dialog open={downloadDialogOpen && selectedQuotation?.id === quotation.id} onOpenChange={(open) => {
+                          if (!open) {
+                            setDownloadDialogOpen(false);
+                            setSelectedQuotation(null);
+                          } else {
+                            setSelectedQuotation(quotation);
+                            setDownloadDialogOpen(true);
+                          }
+                        }}>
+                          <DialogContent>
+                            <DialogHeader>
+                              <DialogTitle>Download Format</DialogTitle>
+                            </DialogHeader>
+                            <div className="space-y-4">
+                              <div className="flex items-center gap-4">
+                                <div className="flex items-center space-x-2">
+                                  <input 
+                                    type="checkbox" 
+                                    id="headerCheckbox" 
+                                    checked={includeHeader}
+                                    onChange={(e) => setIncludeHeader(e.target.checked)}
+                                    className="h-4 w-4"
+                                  />
+                                  <label htmlFor="headerCheckbox" className="text-sm">Include Header</label>
+                                </div>
+                                <div className="flex items-center space-x-2">
+                                  <input 
+                                    type="checkbox" 
+                                    id="footerCheckbox" 
+                                    checked={includeFooter}
+                                    onChange={(e) => setIncludeFooter(e.target.checked)}
+                                    className="h-4 w-4"
+                                  />
+                                  <label htmlFor="footerCheckbox" className="text-sm">Include Footer</label>
+                                </div>
+                              </div>
+                              <div className="flex gap-2">
+                                <Button 
+                                  variant="outline" 
+                                  className="flex-1"
+                                  onClick={() => handleDownload(quotation, 'pdf')}
+                                >
+                                  Download PDF
+                                </Button>
+                                <Button 
+                                  variant="outline" 
+                                  className="flex-1"
+                                  onClick={() => handleDownload(quotation, 'word')}
+                                >
+                                  Download Word
+                                </Button>
+                              </div>
+                            </div>
+                          </DialogContent>
+                        </Dialog>
                         <Button
                           variant="ghost"
                           size="icon"

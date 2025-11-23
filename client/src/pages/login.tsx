@@ -10,10 +10,12 @@ import { apiUrl, API_BASE_URL } from "@/lib/api";
 import { ArrowLeft, Home } from "lucide-react";
 
 export default function Login() {
-  const [, setLocation] = useLocation();
+  const [location, setLocation] = useLocation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const [isLogin, setIsLogin] = useState(true);
+  // Check for signup query parameter
+  const searchParams = new URLSearchParams(window.location.search);
+  const [isLogin, setIsLogin] = useState(!searchParams.has('signup'));
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [firstName, setFirstName] = useState("");

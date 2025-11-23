@@ -451,12 +451,37 @@ export default function Invoices() {
     mutationFn: async (id: string) => {
       console.log("Marking invoice as paid:", id);
       try {
+        const invoice = invoices.find(inv => inv.id === id);
+        const paidDate = new Date();
         const response = await apiRequest("PUT", `/api/invoices/${id}`, {
           status: "paid",
-          paidAt: new Date().toISOString(),
+          paidAt: paidDate.toISOString(),
         });
         const data = await response.json();
         console.log("Mark as paid response:", data);
+        
+        // Update quotation status if invoice was created from a quotation
+        if (invoice) {
+          // Find quotation with matching customer name and similar total
+          const matchingQuotation = quotations.find(q => 
+            q.customerName === invoice.customerName && 
+            q.status === 'accepted' &&
+            Math.abs(parseFloat(q.total.toString()) - parseFloat(invoice.total.toString())) < 0.01
+          );
+          
+          if (matchingQuotation) {
+            const formattedDate = paidDate.toLocaleDateString('en-GB', { 
+              day: 'numeric', 
+              month: 'long', 
+              year: 'numeric' 
+            });
+            await apiRequest("PUT", `/api/quotations/${matchingQuotation.id}`, {
+              status: `invoice generated and paid on: ${formattedDate}`
+            });
+            queryClient.invalidateQueries({ queryKey: ["/api/quotations"] });
+          }
+        }
+        
         return data;
       } catch (error) {
         console.error("Mark as paid error:", error);

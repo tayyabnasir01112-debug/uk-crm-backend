@@ -130,11 +130,20 @@ export default function Landing() {
               <Button 
                 size="lg" 
                 className="text-lg px-8 py-6 min-h-14"
-                onClick={() => window.location.href = "/login"}
+                onClick={() => window.location.href = "/login?signup=true"}
                 data-testid="button-start-trial"
               >
                 Start 7-Day Free Trial
                 <ArrowRight className="ml-2 h-5 w-5" />
+              </Button>
+              <Button 
+                size="lg" 
+                variant="outline" 
+                className="text-lg px-8 py-6 min-h-14 bg-white/10 backdrop-blur-sm border-white/30 text-white hover:bg-white/20"
+                onClick={() => window.location.href = "/login"}
+                data-testid="button-login"
+              >
+                Login
               </Button>
               <Button 
                 size="lg" 
@@ -259,7 +268,7 @@ export default function Landing() {
               <Button 
                 className="w-full text-lg py-6 min-h-14" 
                 size="lg"
-                onClick={() => window.location.href = "/login"}
+                onClick={() => window.location.href = "/login?signup=true"}
                 data-testid="button-pricing-cta"
               >
                 Start Free Trial
