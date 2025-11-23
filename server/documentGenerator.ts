@@ -14,10 +14,23 @@ interface DocumentOptions {
 }
 
 function hexToRgb(hex: string): [number, number, number] {
-  const cleanHex = hex.replace('#', '');
+  let cleanHex = hex.replace('#', '').trim();
+  // Handle 3-digit hex codes
+  if (cleanHex.length === 3) {
+    cleanHex = cleanHex.split('').map(c => c + c).join('');
+  }
+  // Ensure we have 6 characters
+  if (cleanHex.length !== 6) {
+    // Default to blue if invalid
+    return [0.12, 0.25, 0.69];
+  }
   const r = parseInt(cleanHex.substring(0, 2), 16) / 255;
   const g = parseInt(cleanHex.substring(2, 4), 16) / 255;
   const b = parseInt(cleanHex.substring(4, 6), 16) / 255;
+  // Validate RGB values
+  if (isNaN(r) || isNaN(g) || isNaN(b)) {
+    return [0.12, 0.25, 0.69]; // Default blue
+  }
   return [r, g, b];
 }
 
@@ -138,10 +151,13 @@ export async function generatePDF(
         const headerHeight = 24;
 
         // Header background - draw rectangle with primary color
+        // Save state, set color, fill rectangle, restore state
+        doc.save();
         doc.fillColor(...primaryRgb);
         doc.rect(margin, y, contentWidth, headerHeight).fill();
+        doc.restore();
         
-        // Header text - white on colored background (MUST set after fill)
+        // Header text - white on colored background
         doc.fillColor(1, 1, 1);
         doc.fontSize(10).font('Helvetica-Bold');
         const col1 = margin + 8;
