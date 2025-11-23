@@ -967,6 +967,62 @@ export default function DeliveryChallans() {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Standalone Download Dialog for Actions Column */}
+      <Dialog open={downloadDialogOpen && selectedChallan !== null && !viewDialogOpen} onOpenChange={(open) => {
+        if (!open) {
+          setDownloadDialogOpen(false);
+          setSelectedChallan(null);
+        }
+      }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Download Format</DialogTitle>
+          </DialogHeader>
+          {selectedChallan && (
+            <div className="space-y-4">
+              <div className="flex items-center gap-4">
+                <div className="flex items-center space-x-2">
+                  <input 
+                    type="checkbox" 
+                    id="headerCheckboxActionsChallan" 
+                    checked={includeHeader}
+                    onChange={(e) => setIncludeHeader(e.target.checked)}
+                    className="h-4 w-4"
+                  />
+                  <label htmlFor="headerCheckboxActionsChallan" className="text-sm">Include Header</label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <input 
+                    type="checkbox" 
+                    id="footerCheckboxActionsChallan" 
+                    checked={includeFooter}
+                    onChange={(e) => setIncludeFooter(e.target.checked)}
+                    className="h-4 w-4"
+                  />
+                  <label htmlFor="footerCheckboxActionsChallan" className="text-sm">Include Footer</label>
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <Button 
+                  variant="outline" 
+                  className="flex-1"
+                  onClick={() => handleDownload(selectedChallan, 'pdf')}
+                >
+                  Download PDF
+                </Button>
+                <Button 
+                  variant="outline" 
+                  className="flex-1"
+                  onClick={() => handleDownload(selectedChallan, 'word')}
+                >
+                  Download Word
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
