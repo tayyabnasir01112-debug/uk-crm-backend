@@ -69,9 +69,8 @@ export async function generatePDF(
       }
 
       // Title
-      const title = type === 'quotation' ? 'QUOTATION' : type === 'invoice' ? 'INVOICE' : 'DELIVERY CHALLAN';
       doc.fontSize(20).font('Helvetica-Bold').fillColor(0, 0, 0);
-      doc.text(title, margin, y, { align: 'center', width: contentWidth });
+      doc.text(type === 'quotation' ? 'QUOTATION' : type === 'invoice' ? 'INVOICE' : 'DELIVERY CHALLAN', margin, y, { align: 'center', width: contentWidth });
       y += 30;
 
       // Document Info
@@ -87,8 +86,7 @@ export async function generatePDF(
       doc.fontSize(10).font('Helvetica').fillColor(0, 0, 0);
       doc.text(`Document Number: ${docNumber}`, margin, y);
       const dateText = `Date: ${docDate}`;
-      const dateWidth = doc.widthOfString(dateText);
-      doc.text(dateText, pageWidth - margin - dateWidth, y);
+      doc.text(dateText, pageWidth - margin - doc.widthOfString(dateText), y);
       y += 25;
 
       // Paid Stamp
@@ -118,16 +116,16 @@ export async function generatePDF(
       }
       y += 20;
 
-      // Items Table - SIMPLIFIED: No alternating backgrounds
+      // Items Table - ONLY header background, NO row backgrounds
       if (Array.isArray(document.items) && document.items.length > 0) {
         const tableStartY = y;
         const rowHeight = 20;
         const headerHeight = 24;
 
-        // Header background
+        // Header background ONLY
         doc.rect(margin, y, contentWidth, headerHeight).fillColor(...primaryRgb).fill();
         
-        // Header text
+        // Header text - MUST reset fillColor
         doc.fontSize(10).font('Helvetica-Bold').fillColor(1, 1, 1);
         const col1 = margin + 8;
         const col2 = margin + contentWidth * 0.50;
@@ -137,14 +135,13 @@ export async function generatePDF(
         doc.text('Qty', col2, y + 6);
         if (type !== 'challan') {
           doc.text('Price', col3, y + 6);
-          const totalLabel = 'Total';
-          doc.text(totalLabel, col4 - doc.widthOfString(totalLabel), y + 6);
+          doc.text('Total', col4 - doc.widthOfString('Total'), y + 6);
         } else {
           doc.text('Unit', col3, y + 6);
         }
         y += headerHeight;
 
-        // Rows - NO BACKGROUNDS, just text
+        // Rows - NO backgrounds, just text
         doc.fontSize(9).font('Helvetica').fillColor(0, 0, 0);
         document.items.forEach((item: any) => {
           doc.text(item.name || 'N/A', col1, y + 5, { width: col2 - col1 - 10 });
@@ -153,11 +150,9 @@ export async function generatePDF(
           if (type !== 'challan') {
             const price = typeof item.unitPrice === 'number' ? item.unitPrice : parseFloat(item.unitPrice || 0);
             const total = typeof item.total === 'number' ? item.total : parseFloat(item.total || 0);
-            const priceText = `£${price.toFixed(2)}`;
-            doc.text(priceText, col3 - doc.widthOfString(priceText), y + 5);
-            const totalText = `£${total.toFixed(2)}`;
+            doc.text(`£${price.toFixed(2)}`, col3 - doc.widthOfString(`£${price.toFixed(2)}`), y + 5);
             doc.font('Helvetica-Bold');
-            doc.text(totalText, col4 - doc.widthOfString(totalText), y + 5);
+            doc.text(`£${total.toFixed(2)}`, col4 - doc.widthOfString(`£${total.toFixed(2)}`), y + 5);
             doc.font('Helvetica');
           } else {
             doc.text(item.unit || 'pcs', col3, y + 5);
@@ -165,13 +160,13 @@ export async function generatePDF(
           y += rowHeight;
         });
 
-        // Border
+        // Border only
         doc.strokeColor(0.8, 0.8, 0.8).lineWidth(0.5);
         doc.rect(margin, tableStartY, contentWidth, y - tableStartY).stroke();
         y += 20;
       }
 
-      // Totals
+      // Totals - NO background box, just text
       if (type !== 'challan') {
         const docWithTotals = document as Quotation | Invoice;
         const subtotal = typeof docWithTotals.subtotal === 'string' ? parseFloat(docWithTotals.subtotal) : docWithTotals.subtotal || 0;
@@ -180,41 +175,31 @@ export async function generatePDF(
         const total = typeof docWithTotals.total === 'string' ? parseFloat(docWithTotals.total) : docWithTotals.total || 0;
 
         const totalsX = pageWidth - margin - 180;
-        const totalsY = y;
         
-        // Background
-        doc.rect(totalsX - 10, totalsY, 180, 75).fillColor(0.98, 0.98, 0.98).fill();
-
-        // Text
-        let ty = totalsY + 10;
         doc.fontSize(10).font('Helvetica').fillColor(0, 0, 0);
-        doc.text('Subtotal:', totalsX, ty);
-        const st = `£${subtotal.toFixed(2)}`;
+        doc.text('Subtotal:', totalsX, y);
         doc.font('Helvetica-Bold');
-        doc.text(st, totalsX + 160 - doc.widthOfString(st), ty);
-        ty += 16;
+        doc.text(`£${subtotal.toFixed(2)}`, totalsX + 160 - doc.widthOfString(`£${subtotal.toFixed(2)}`), y);
+        y += 16;
 
         doc.font('Helvetica').fillColor(0, 0, 0);
-        doc.text(`Tax (${taxRate.toFixed(2)}%):`, totalsX, ty);
-        const tax = `£${taxAmount.toFixed(2)}`;
+        doc.text(`Tax (${taxRate.toFixed(2)}%):`, totalsX, y);
         doc.font('Helvetica-Bold');
-        doc.text(tax, totalsX + 160 - doc.widthOfString(tax), ty);
-        ty += 16;
+        doc.text(`£${taxAmount.toFixed(2)}`, totalsX + 160 - doc.widthOfString(`£${taxAmount.toFixed(2)}`), y);
+        y += 16;
 
-        doc.strokeColor(0.7, 0.7, 0.7).lineWidth(1).moveTo(totalsX, ty).lineTo(totalsX + 160, ty).stroke();
-        ty += 10;
+        doc.strokeColor(0.7, 0.7, 0.7).lineWidth(1).moveTo(totalsX, y).lineTo(totalsX + 160, y).stroke();
+        y += 10;
 
         doc.fontSize(12).font('Helvetica-Bold').fillColor(...primaryRgb);
-        doc.text('Total:', totalsX, ty);
-        const tot = `£${total.toFixed(2)}`;
+        doc.text('Total:', totalsX, y);
         doc.fontSize(14);
-        doc.text(tot, totalsX + 160 - doc.widthOfString(tot), ty);
-        y = totalsY + 80;
+        doc.text(`£${total.toFixed(2)}`, totalsX + 160 - doc.widthOfString(`£${total.toFixed(2)}`), y);
+        y += 25;
       }
 
       // Notes
       if (document.notes) {
-        y += 15;
         doc.fontSize(10).font('Helvetica-Bold').fillColor(0, 0, 0);
         doc.text('Notes:', margin, y);
         y += 14;
