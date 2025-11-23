@@ -12,6 +12,18 @@ interface DocumentOptions {
   footerText?: string;
 }
 
+// Helper function to convert hex to RGB for PDFKit
+function hexToRgb(hex: string): [number, number, number] {
+  const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+  return result
+    ? [
+        parseInt(result[1], 16) / 255,
+        parseInt(result[2], 16) / 255,
+        parseInt(result[3], 16) / 255,
+      ]
+    : [0, 0, 0];
+}
+
 export async function generatePDF(
   document: Quotation | Invoice | DeliveryChallan,
   type: 'quotation' | 'invoice' | 'challan',
@@ -47,7 +59,7 @@ export async function generatePDF(
         if (options.businessName) {
           doc.fontSize(24)
              .font('Helvetica-Bold')
-             .fillColor('#1e40af')
+             .fillColor(...hexToRgb('#1e40af'))
              .text(options.businessName, margin, yPosition, {
                width: contentWidth,
                align: 'left'
@@ -58,7 +70,7 @@ export async function generatePDF(
         if (options.businessAddress) {
           doc.fontSize(10)
              .font('Helvetica')
-             .fillColor('#000000')
+             .fillColor(0, 0, 0)
              .text(options.businessAddress, margin, yPosition, {
                width: contentWidth,
                align: 'left'
@@ -74,7 +86,7 @@ export async function generatePDF(
           
           doc.fontSize(9)
              .font('Helvetica')
-             .fillColor('#666666')
+             .fillColor(0.4, 0.4, 0.4)
              .text(contactInfo, margin, yPosition, {
                width: contentWidth,
                align: 'left'
@@ -84,7 +96,7 @@ export async function generatePDF(
 
         doc.moveTo(margin, yPosition)
            .lineTo(pageWidth - margin, yPosition)
-           .strokeColor('#e5e7eb')
+           .strokeColor(0.9, 0.9, 0.9)
            .lineWidth(1)
            .stroke();
         yPosition += 20;
@@ -94,12 +106,12 @@ export async function generatePDF(
       const title = type === 'quotation' ? 'QUOTATION' : type === 'invoice' ? 'INVOICE' : 'DELIVERY CHALLAN';
       
       doc.rect(margin, yPosition, contentWidth, 40)
-         .fillColor('#f3f4f6')
+         .fillColor(0.95, 0.95, 0.95)
          .fill();
       
       doc.fontSize(20)
          .font('Helvetica-Bold')
-         .fillColor('#111827')
+         .fillColor(0, 0, 0)
          .text(title, margin + 10, yPosition + 10, {
            width: contentWidth - 20,
            align: 'center'
@@ -122,22 +134,22 @@ export async function generatePDF(
 
       doc.fontSize(10)
          .font('Helvetica-Bold')
-         .fillColor('#374151')
+         .fillColor(0.2, 0.2, 0.2)
          .text('Document Number:', margin, yPosition);
       
       doc.fontSize(11)
          .font('Helvetica')
-         .fillColor('#111827')
+         .fillColor(0, 0, 0)
          .text(docNumber, margin + 100, yPosition);
 
       doc.fontSize(10)
          .font('Helvetica-Bold')
-         .fillColor('#374151')
+         .fillColor(0.2, 0.2, 0.2)
          .text('Date:', pageWidth - margin - 150, yPosition);
       
       doc.fontSize(11)
          .font('Helvetica')
-         .fillColor('#111827')
+         .fillColor(0, 0, 0)
          .text(docDate, pageWidth - margin - 100, yPosition);
 
       yPosition += 25;
@@ -152,7 +164,7 @@ export async function generatePDF(
            .rotate(-45)
            .fontSize(32)
            .font('Helvetica-Bold')
-           .fillColor('#10b981')
+           .fillColor(...hexToRgb('#10b981'))
            .text('PAID', 0, 0);
         doc.restore();
         
@@ -164,14 +176,14 @@ export async function generatePDF(
       // Customer Information Section
       doc.fontSize(11)
          .font('Helvetica-Bold')
-         .fillColor('#111827')
+         .fillColor(0, 0, 0)
          .text('Bill To:', margin, yPosition);
       
       yPosition += 15;
 
       doc.fontSize(10)
          .font('Helvetica')
-         .fillColor('#374151')
+         .fillColor(0, 0, 0)
          .text(document.customerName, margin, yPosition);
       yPosition += 12;
 
@@ -194,13 +206,15 @@ export async function generatePDF(
         const headerHeight = 30;
         let currentY = tableTop;
 
+        // Table Header Background
         doc.rect(margin, currentY, contentWidth, headerHeight)
-           .fillColor('#1e40af')
+           .fillColor(...hexToRgb('#1e40af'))
            .fill();
 
+        // Table Header Text
         doc.fontSize(10)
            .font('Helvetica-Bold')
-           .fillColor('#ffffff');
+           .fillColor(1, 1, 1);
 
         const colWidths = type !== 'challan' 
           ? [contentWidth * 0.40, contentWidth * 0.15, contentWidth * 0.20, contentWidth * 0.25]
@@ -222,42 +236,50 @@ export async function generatePDF(
 
         currentY += headerHeight;
 
+        // Table Rows
         doc.fontSize(9)
            .font('Helvetica')
-           .fillColor('#111827');
+           .fillColor(0, 0, 0);
 
         document.items.forEach((item: any, index: number) => {
+          // Alternate row background
           if (index % 2 === 0) {
             doc.rect(margin, currentY, contentWidth, rowHeight)
-               .fillColor('#f9fafb')
+               .fillColor(0.98, 0.98, 0.98)
                .fill();
           }
 
           xPos = margin + 10;
           
+          // Item Name
           doc.text(item.name || 'N/A', xPos, currentY + 8, {
             width: colWidths[0] - 10
           });
           xPos += colWidths[0];
 
+          // Quantity
           doc.text(String(item.quantity || 0), xPos, currentY + 8);
           xPos += colWidths[1];
 
           if (type !== 'challan') {
+            // Unit Price
             doc.text(`£${(typeof item.unitPrice === 'number' ? item.unitPrice : parseFloat(item.unitPrice || 0)).toFixed(2)}`, xPos, currentY + 8);
             xPos += colWidths[2];
+            // Total
             doc.font('Helvetica-Bold')
                .text(`£${(typeof item.total === 'number' ? item.total : parseFloat(item.total || 0)).toFixed(2)}`, xPos, currentY + 8);
             doc.font('Helvetica');
           } else {
+            // Unit
             doc.text(item.unit || 'pcs', xPos, currentY + 8);
           }
 
           currentY += rowHeight;
         });
 
+        // Table Border
         doc.rect(margin, tableTop, contentWidth, currentY - tableTop)
-           .strokeColor('#d1d5db')
+           .strokeColor(0.82, 0.82, 0.82)
            .lineWidth(1)
            .stroke();
 
@@ -283,39 +305,44 @@ export async function generatePDF(
           ? parseFloat(docWithTotals.total) 
           : docWithTotals.total || 0;
 
+        // Totals background
         doc.rect(totalsStartX - 10, totalsY, 200, 80)
-           .fillColor('#f9fafb')
+           .fillColor(0.98, 0.98, 0.98)
            .fill();
 
         let totalsYPos = totalsY + 10;
 
+        // Subtotal
         doc.fontSize(9)
            .font('Helvetica')
-           .fillColor('#6b7280')
+           .fillColor(0.4, 0.4, 0.4)
            .text('Subtotal:', totalsStartX, totalsYPos);
         doc.font('Helvetica-Bold')
-           .fillColor('#111827')
+           .fillColor(0, 0, 0)
            .text(`£${subtotal.toFixed(2)}`, totalsStartX + 100, totalsYPos, { align: 'right' });
         totalsYPos += 15;
 
+        // Tax Rate
         doc.font('Helvetica')
-           .fillColor('#6b7280')
+           .fillColor(0.4, 0.4, 0.4)
            .text(`Tax (${taxRate.toFixed(2)}%):`, totalsStartX, totalsYPos);
         doc.font('Helvetica-Bold')
-           .fillColor('#111827')
+           .fillColor(0, 0, 0)
            .text(`£${taxAmount.toFixed(2)}`, totalsStartX + 100, totalsYPos, { align: 'right' });
         totalsYPos += 15;
 
+        // Divider line
         doc.moveTo(totalsStartX, totalsYPos)
            .lineTo(totalsStartX + 180, totalsYPos)
-           .strokeColor('#d1d5db')
+           .strokeColor(0.82, 0.82, 0.82)
            .lineWidth(1)
            .stroke();
         totalsYPos += 10;
 
+        // Total
         doc.fontSize(12)
            .font('Helvetica-Bold')
-           .fillColor('#1e40af')
+           .fillColor(...hexToRgb('#1e40af'))
            .text('Total:', totalsStartX, totalsYPos);
         doc.fontSize(14)
            .text(`£${total.toFixed(2)}`, totalsStartX + 100, totalsYPos, { align: 'right' });
@@ -328,12 +355,12 @@ export async function generatePDF(
         yPosition += 10;
         doc.fontSize(10)
            .font('Helvetica-Bold')
-           .fillColor('#111827')
+           .fillColor(0, 0, 0)
            .text('Notes:', margin, yPosition);
         yPosition += 15;
         doc.fontSize(9)
            .font('Helvetica')
-           .fillColor('#374151')
+           .fillColor(0, 0, 0)
            .text(document.notes, margin, yPosition, {
              width: contentWidth,
              align: 'left'
@@ -345,7 +372,7 @@ export async function generatePDF(
         const footerY = pageHeight - margin - 20;
         doc.fontSize(8)
            .font('Helvetica')
-           .fillColor('#9ca3af')
+           .fillColor(0.6, 0.6, 0.6)
            .text(
              options.footerText || options.businessName || 'Thank you for your business!',
              margin,
@@ -421,7 +448,7 @@ export async function generateWord(
           text: title,
           bold: true,
           size: 36,
-          color: '111827',
+          color: '000000',
         }),
       ],
       alignment: AlignmentType.CENTER,
@@ -511,7 +538,7 @@ export async function generateWord(
     const headerCells = [
       new TableCell({
         children: [new Paragraph({
-          children: [new TextRun({ text: 'Item', bold: true })],
+          children: [new TextRun({ text: 'Item', bold: true, color: 'ffffff' })],
           alignment: AlignmentType.LEFT,
         })],
         shading: { fill: '1e40af' },
@@ -519,7 +546,7 @@ export async function generateWord(
       }),
       new TableCell({
         children: [new Paragraph({
-          children: [new TextRun({ text: 'Quantity', bold: true })],
+          children: [new TextRun({ text: 'Quantity', bold: true, color: 'ffffff' })],
           alignment: AlignmentType.CENTER,
         })],
         shading: { fill: '1e40af' },
@@ -531,7 +558,7 @@ export async function generateWord(
       headerCells.push(
         new TableCell({
           children: [new Paragraph({
-            children: [new TextRun({ text: 'Unit Price', bold: true })],
+            children: [new TextRun({ text: 'Unit Price', bold: true, color: 'ffffff' })],
             alignment: AlignmentType.RIGHT,
           })],
           shading: { fill: '1e40af' },
@@ -539,7 +566,7 @@ export async function generateWord(
         }),
         new TableCell({
           children: [new Paragraph({
-            children: [new TextRun({ text: 'Total', bold: true })],
+            children: [new TextRun({ text: 'Total', bold: true, color: 'ffffff' })],
             alignment: AlignmentType.RIGHT,
           })],
           shading: { fill: '1e40af' },
@@ -550,7 +577,7 @@ export async function generateWord(
       headerCells.push(
         new TableCell({
           children: [new Paragraph({
-            children: [new TextRun({ text: 'Unit', bold: true })],
+            children: [new TextRun({ text: 'Unit', bold: true, color: 'ffffff' })],
             alignment: AlignmentType.CENTER,
           })],
           shading: { fill: '1e40af' },
@@ -722,4 +749,3 @@ export async function generateWord(
 
   return await Packer.toBuffer(doc);
 }
-

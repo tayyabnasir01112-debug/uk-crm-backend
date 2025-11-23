@@ -449,13 +449,22 @@ export default function Invoices() {
 
   const markAsPaidMutation = useMutation({
     mutationFn: async (id: string) => {
-      const response = await apiRequest("PUT", `/api/invoices/${id}`, {
-        status: "paid",
-        paidAt: new Date().toISOString(),
-      });
-      return await response.json();
+      console.log("Marking invoice as paid:", id);
+      try {
+        const response = await apiRequest("PUT", `/api/invoices/${id}`, {
+          status: "paid",
+          paidAt: new Date().toISOString(),
+        });
+        const data = await response.json();
+        console.log("Mark as paid response:", data);
+        return data;
+      } catch (error) {
+        console.error("Mark as paid error:", error);
+        throw error;
+      }
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
+      console.log("Mark as paid success:", data);
       toast({
         title: "Success",
         description: "Invoice marked as paid",
@@ -466,6 +475,7 @@ export default function Invoices() {
       }
     },
     onError: (error: Error) => {
+      console.error("Mark as paid mutation error:", error);
       if (isUnauthorizedError(error)) {
         toast({
           title: "Unauthorized",
@@ -479,7 +489,7 @@ export default function Invoices() {
       }
       toast({
         title: "Error",
-        description: "Failed to mark invoice as paid",
+        description: error.message || "Failed to mark invoice as paid",
         variant: "destructive",
       });
     },
