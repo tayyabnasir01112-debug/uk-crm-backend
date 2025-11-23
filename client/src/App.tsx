@@ -20,6 +20,11 @@ import Inventory from "@/pages/inventory";
 import Employees from "@/pages/employees";
 import Reports from "@/pages/reports";
 import Settings from "@/pages/settings";
+import About from "@/pages/about";
+import Contact from "@/pages/contact";
+import Privacy from "@/pages/privacy";
+import Terms from "@/pages/terms";
+import FAQ from "@/pages/faq";
 import NotFound from "@/pages/not-found";
 
 function AuthenticatedLayout({ children }: { children: React.ReactNode }) {
@@ -67,6 +72,11 @@ function Router() {
     return (
       <Switch>
         <Route path="/login" component={Login} />
+        <Route path="/about" component={About} />
+        <Route path="/contact" component={Contact} />
+        <Route path="/faq" component={FAQ} />
+        <Route path="/privacy" component={Privacy} />
+        <Route path="/terms" component={Terms} />
         <Route path="/" component={Landing} />
         <Route component={Landing} />
       </Switch>

@@ -1,0 +1,20 @@
+User-agent: *
+Allow: /
+
+# Sitemap
+Sitemap: https://crmlaunch.co.uk/sitemap.xml
+Sitemap: https://uk-crm-frontend.netlify.app/sitemap.xml
+
+# Disallow admin and API routes
+Disallow: /api/
+Disallow: /login
+Disallow: /settings
+
+# Allow important pages
+Allow: /
+Allow: /about
+Allow: /contact
+Allow: /privacy
+Allow: /terms
+Allow: /faq
+

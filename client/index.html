@@ -34,6 +34,48 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
     <link rel="dns-prefetch" href="https://uk-crm-backend.onrender.com">
+    
+    <!-- Google Analytics Placeholder -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=GA_MEASUREMENT_ID"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', 'GA_MEASUREMENT_ID', {
+        'anonymize_ip': true,
+        'cookie_flags': 'SameSite=None;Secure'
+      });
+    </script>
+    
+    <!-- Structured Data for SEO -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "SoftwareApplication",
+      "name": "CRM Launch",
+      "applicationCategory": "BusinessApplication",
+      "operatingSystem": "Web",
+      "offers": {
+        "@type": "Offer",
+        "price": "20.00",
+        "priceCurrency": "GBP",
+        "priceValidUntil": "2026-12-31"
+      },
+      "aggregateRating": {
+        "@type": "AggregateRating",
+        "ratingValue": "4.8",
+        "ratingCount": "150"
+      },
+      "description": "Professional CRM software for UK small businesses. Manage invoices, quotations, delivery challans, inventory & HR in one place.",
+      "url": "https://crmlaunch.co.uk",
+      "provider": {
+        "@type": "Organization",
+        "name": "Tayyab Automates LTD",
+        "url": "https://tayyabautomates.com"
+      }
+    }
+    </script>
+    
     <script>
       // Set API URL IMMEDIATELY - must run before any modules load
       // This is in <head> to ensure it runs before the module script

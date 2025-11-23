@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Link } from "wouter";
 import { 
   FileText, 
   Package, 
@@ -160,6 +161,28 @@ export default function Landing() {
             <p className="text-white/80 text-sm">
               ✓ No credit card required • ✓ Cancel anytime • ✓ UK-focused features
             </p>
+            
+            {/* Structured Data for Local Business */}
+            <script type="application/ld+json" dangerouslySetInnerHTML={{
+              __html: JSON.stringify({
+                "@context": "https://schema.org",
+                "@type": "LocalBusiness",
+                "name": "CRM Launch",
+                "description": "Professional CRM software for UK small businesses",
+                "url": "https://crmlaunch.co.uk",
+                "telephone": "+44",
+                "email": "help@crmlaunch.co.uk",
+                "address": {
+                  "@type": "PostalAddress",
+                  "addressCountry": "GB"
+                },
+                "priceRange": "£20/month",
+                "areaServed": {
+                  "@type": "Country",
+                  "name": "United Kingdom"
+                }
+              })
+            }} />
           </div>
         </div>
       </section>
