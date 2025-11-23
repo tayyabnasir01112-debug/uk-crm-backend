@@ -66,6 +66,7 @@ export async function generatePDF(
       const contentWidth = pageWidth - (margin * 2);
       const primaryColor = options.primaryColor || '#1e40af';
       const primaryRgb = hexToRgb(primaryColor);
+      console.log('PDF Generation - Primary Color:', primaryColor, 'RGB:', primaryRgb);
       let y = margin;
 
       // Header
@@ -151,13 +152,10 @@ export async function generatePDF(
         const headerHeight = 24;
 
         // Header background - draw rectangle with primary color
-        // Save state, set color, fill rectangle, restore state
-        doc.save();
         doc.fillColor(...primaryRgb);
         doc.rect(margin, y, contentWidth, headerHeight).fill();
-        doc.restore();
         
-        // Header text - white on colored background
+        // Header text - white on colored background (explicitly set after fill)
         doc.fillColor(1, 1, 1);
         doc.fontSize(10).font('Helvetica-Bold');
         const col1 = margin + 8;
