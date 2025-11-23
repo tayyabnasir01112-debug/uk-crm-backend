@@ -151,16 +151,39 @@ export function AppSidebar() {
           <SidebarGroup>
             <SidebarGroupLabel>Subscription</SidebarGroupLabel>
             <SidebarGroupContent className="px-3">
-              <div className="p-3 rounded-md bg-muted">
+              <div className="p-3 rounded-md bg-muted space-y-3">
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-sm font-medium">Trial Status</span>
                   <Badge variant="secondary" className="text-xs" data-testid="badge-trial-days">
                     {trialDaysRemaining} days left
                   </Badge>
                 </div>
-                <p className="text-xs text-muted-foreground">
+                <p className="text-xs text-muted-foreground mb-3">
                   Enjoying the CRM? Subscribe to continue after your trial ends.
                 </p>
+                <div className="space-y-2">
+                  <Button 
+                    size="sm" 
+                    className="w-full text-xs"
+                    onClick={() => setLocation('/settings?tab=subscription')}
+                    data-testid="button-subscribe-stripe"
+                  >
+                    Subscribe with Stripe
+                  </Button>
+                  <Button 
+                    size="sm" 
+                    variant="outline"
+                    className="w-full text-xs"
+                    onClick={() => setLocation('/settings?tab=subscription')}
+                    data-testid="button-subscribe-paypal"
+                  >
+                    Subscribe with PayPal
+                  </Button>
+                </div>
+                <div className="flex items-center justify-center gap-2 pt-2 border-t border-border">
+                  <img src="https://cdn.simpleicons.org/stripe/635BFF" alt="Stripe" className="h-4 opacity-70" />
+                  <img src="https://cdn.simpleicons.org/paypal/00457C" alt="PayPal" className="h-4 opacity-70" />
+                </div>
               </div>
             </SidebarGroupContent>
           </SidebarGroup>

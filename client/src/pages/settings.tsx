@@ -37,6 +37,11 @@ type BusinessFormData = z.infer<typeof businessSchema>;
 export default function Settings() {
   const { user, isAuthenticated, isLoading: authLoading } = useAuth();
   const { toast } = useToast();
+  const [location, setLocation] = useLocation();
+  
+  // Check for tab query parameter
+  const searchParams = new URLSearchParams(window.location.search);
+  const defaultTab = searchParams.get('tab') || 'profile';
 
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
@@ -396,35 +401,96 @@ export default function Settings() {
               </div>
 
               {subscription?.status === "trial" && trialDaysRemaining !== null && (
-                <Card className="p-4 bg-muted">
-                  <div className="flex items-start gap-3">
-                    <div className="flex-1">
-                      <h4 className="font-semibold mb-1">Trial Period</h4>
-                      <p className="text-sm text-muted-foreground">
-                        You have <strong>{trialDaysRemaining} days</strong> remaining in your free trial.
+                <Card className="p-6 bg-muted border-2 border-primary/20">
+                  <div className="space-y-4">
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <h4 className="font-semibold mb-1 text-lg">Trial Period</h4>
+                        <p className="text-sm text-muted-foreground">
+                          You have <strong className="text-foreground">{trialDaysRemaining} days</strong> remaining in your free trial.
+                        </p>
+                      </div>
+                      <Badge variant="secondary" className="text-sm">
+                        {trialDaysRemaining} days left
+                      </Badge>
+                    </div>
+                    
+                    <div className="pt-4 border-t border-border">
+                      <h5 className="font-semibold mb-3">Subscribe to Continue</h5>
+                      <p className="text-sm text-muted-foreground mb-4">
+                        Choose a secure payment method to continue using the CRM after your trial ends. All payments are processed securely.
+                      </p>
+                      
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-4">
+                        <Button 
+                          className="w-full h-auto py-4 flex flex-col items-center gap-2"
+                          onClick={() => {
+                            // Will be implemented when API keys are provided
+                            toast({
+                              title: "Stripe Integration",
+                              description: "Stripe payment integration will be available soon. Contact support for assistance.",
+                            });
+                          }}
+                          data-testid="button-subscribe-stripe"
+                        >
+                          <img src="https://cdn.simpleicons.org/stripe/635BFF" alt="Stripe" className="h-6" />
+                          <span>Subscribe with Stripe</span>
+                          <span className="text-xs opacity-80">Secure card payments</span>
+                        </Button>
+                        
+                        <Button 
+                          variant="outline"
+                          className="w-full h-auto py-4 flex flex-col items-center gap-2"
+                          onClick={() => {
+                            // Will be implemented when API keys are provided
+                            toast({
+                              title: "PayPal Integration",
+                              description: "PayPal payment integration will be available soon. Contact support for assistance.",
+                            });
+                          }}
+                          data-testid="button-subscribe-paypal"
+                        >
+                          <img src="https://cdn.simpleicons.org/paypal/00457C" alt="PayPal" className="h-6" />
+                          <span>Subscribe with PayPal</span>
+                          <span className="text-xs opacity-80">Pay with PayPal account</span>
+                        </Button>
+                      </div>
+                      
+                      <div className="flex items-center justify-center gap-4 pt-3 border-t border-border">
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                          <img src="https://cdn.simpleicons.org/stripe/635BFF" alt="Stripe" className="h-4 opacity-60" />
+                          <span>Secured by Stripe</span>
+                        </div>
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                          <img src="https://cdn.simpleicons.org/paypal/00457C" alt="PayPal" className="h-4 opacity-60" />
+                          <span>Secured by PayPal</span>
+                        </div>
+                      </div>
+                      
+                      <p className="text-xs text-center text-muted-foreground mt-3">
+                        £20/month • Cancel anytime • No hidden fees
                       </p>
                     </div>
                   </div>
                 </Card>
               )}
-
-              <div className="space-y-3">
-                <h4 className="font-semibold">Payment Methods</h4>
-                <p className="text-sm text-muted-foreground">
-                  Manage your Stripe or PayPal subscription to continue after your trial ends.
-                </p>
-                <div className="flex gap-3">
-                  <Button variant="outline" disabled data-testid="button-stripe">
-                    Add Stripe Payment
-                  </Button>
-                  <Button variant="outline" disabled data-testid="button-paypal">
-                    Add PayPal Payment
-                  </Button>
+              
+              {subscription?.status !== "trial" && (
+                <div className="space-y-3">
+                  <h4 className="font-semibold">Payment Methods</h4>
+                  <p className="text-sm text-muted-foreground">
+                    Manage your Stripe or PayPal subscription.
+                  </p>
+                  <div className="flex gap-3">
+                    <Button variant="outline" disabled data-testid="button-stripe">
+                      Manage Stripe Payment
+                    </Button>
+                    <Button variant="outline" disabled data-testid="button-paypal">
+                      Manage PayPal Payment
+                    </Button>
+                  </div>
                 </div>
-                <p className="text-xs text-muted-foreground">
-                  Payment integration will be configured by the admin. Contact support for assistance.
-                </p>
-              </div>
+              )}
             </div>
           </Card>
         </TabsContent>

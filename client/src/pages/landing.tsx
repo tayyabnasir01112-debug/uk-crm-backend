@@ -119,12 +119,12 @@ export default function Landing() {
             </Badge>
             
             <h1 className="text-5xl sm:text-6xl lg:text-7xl font-bold text-white mb-6 leading-tight">
-              Affordable CRM for UK Small Businesses
+              UK Small Business CRM Software
             </h1>
             
             <p className="text-xl sm:text-2xl text-white/90 mb-8 leading-relaxed">
-              Invoices, Quotes, Inventory & More - All in One Place<br />
-              <span className="text-2xl sm:text-3xl font-semibold text-white">Just £20/month</span>
+              Professional Invoice Management, Quotations, Delivery Challans, Inventory & HR<br />
+              <span className="text-2xl sm:text-3xl font-semibold text-white">Just £20/month • Secure Payments via Stripe & PayPal</span>
             </p>
             
             <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-8">
@@ -168,9 +168,9 @@ export default function Landing() {
       <section id="features" className="py-20 bg-background">
         <div className="container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
-            <h2 className="text-4xl font-bold mb-4">Everything Your Business Needs</h2>
+            <h2 className="text-4xl font-bold mb-4">Complete UK Business Management Solution</h2>
             <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-              Six powerful modules working together to streamline your operations
+              Six powerful modules designed specifically for UK small businesses - from invoice generation to HR management, all in one integrated platform
             </p>
           </div>
 
@@ -239,9 +239,9 @@ export default function Landing() {
       <section className="py-20 bg-background">
         <div className="container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
-            <h2 className="text-4xl font-bold mb-4">Simple, Transparent Pricing</h2>
+            <h2 className="text-4xl font-bold mb-4">Simple, Transparent Pricing for UK Businesses</h2>
             <p className="text-xl text-muted-foreground">
-              One plan with everything you need
+              One affordable plan with everything you need • Secure payments via Stripe & PayPal
             </p>
           </div>
 
@@ -288,8 +288,19 @@ export default function Landing() {
             <p className="text-muted-foreground mb-4">
               &copy; {new Date().getFullYear()} CRM Launch. All rights reserved.
             </p>
-            <p className="text-sm text-muted-foreground">
-              Designed for UK small businesses • Powered by modern technology
+            <p className="text-sm text-muted-foreground mb-2">
+              Designed for UK small businesses • Secure payments via Stripe & PayPal
+            </p>
+            <p className="text-xs text-muted-foreground">
+              Powered by{" "}
+              <a 
+                href="https://tayyabautomates.com/" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="text-primary hover:underline"
+              >
+                Tayyab Automates LTD
+              </a>
             </p>
           </div>
         </div>
