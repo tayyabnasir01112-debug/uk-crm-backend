@@ -1,5 +1,5 @@
 import PDFDocument from 'pdfkit';
-import { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell, WidthType, AlignmentType } from 'docx';
+import { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell, WidthType, AlignmentType, BorderStyle } from 'docx';
 import type { Quotation, Invoice, DeliveryChallan } from '@shared/schema';
 
 interface DocumentOptions {
@@ -19,7 +19,14 @@ export async function generatePDF(
 ): Promise<Buffer> {
   return new Promise((resolve, reject) => {
     try {
-      const doc = new PDFDocument({ margin: 50, size: 'A4' });
+      const doc = new PDFDocument({ 
+        margin: 50, 
+        size: 'A4',
+        info: {
+          Title: type === 'quotation' ? 'Quotation' : type === 'invoice' ? 'Invoice' : 'Delivery Challan',
+          Author: options.businessName || 'UK Small Business CRM',
+        }
+      });
       const buffers: Buffer[] = [];
 
       doc.on('data', buffers.push.bind(buffers));
@@ -29,128 +36,325 @@ export async function generatePDF(
       });
       doc.on('error', reject);
 
-      // Header
+      const pageWidth = doc.page.width;
+      const pageHeight = doc.page.height;
+      const margin = 50;
+      const contentWidth = pageWidth - (margin * 2);
+      let yPosition = margin;
+
+      // Header Section
       if (options.includeHeader !== false) {
         if (options.businessName) {
-          doc.fontSize(20).text(options.businessName, { align: 'center' });
+          doc.fontSize(24)
+             .font('Helvetica-Bold')
+             .fillColor('#1e40af')
+             .text(options.businessName, margin, yPosition, {
+               width: contentWidth,
+               align: 'left'
+             });
+          yPosition += 30;
         }
+
         if (options.businessAddress) {
-          doc.fontSize(10).text(options.businessAddress, { align: 'center' });
+          doc.fontSize(10)
+             .font('Helvetica')
+             .fillColor('#000000')
+             .text(options.businessAddress, margin, yPosition, {
+               width: contentWidth,
+               align: 'left'
+             });
+          yPosition += 15;
         }
+
         if (options.businessEmail || options.businessPhone) {
-          const contactInfo = [options.businessEmail, options.businessPhone].filter(Boolean).join(' | ');
-          doc.fontSize(10).text(contactInfo, { align: 'center' });
+          const contactInfo = [
+            options.businessEmail,
+            options.businessPhone
+          ].filter(Boolean).join(' | ');
+          
+          doc.fontSize(9)
+             .font('Helvetica')
+             .fillColor('#666666')
+             .text(contactInfo, margin, yPosition, {
+               width: contentWidth,
+               align: 'left'
+             });
+          yPosition += 20;
         }
-        doc.moveDown(2);
+
+        doc.moveTo(margin, yPosition)
+           .lineTo(pageWidth - margin, yPosition)
+           .strokeColor('#e5e7eb')
+           .lineWidth(1)
+           .stroke();
+        yPosition += 20;
       }
 
-      // Document Title
+      // Document Title Section
       const title = type === 'quotation' ? 'QUOTATION' : type === 'invoice' ? 'INVOICE' : 'DELIVERY CHALLAN';
-      doc.fontSize(18).font('Helvetica-Bold').text(title, { align: 'center' });
-      doc.moveDown();
+      
+      doc.rect(margin, yPosition, contentWidth, 40)
+         .fillColor('#f3f4f6')
+         .fill();
+      
+      doc.fontSize(20)
+         .font('Helvetica-Bold')
+         .fillColor('#111827')
+         .text(title, margin + 10, yPosition + 10, {
+           width: contentWidth - 20,
+           align: 'center'
+         });
+      
+      yPosition += 50;
 
-      // Document Number and Date
+      // Document Details Section
       const docNumber = type === 'quotation' 
         ? (document as Quotation).quotationNumber
         : type === 'invoice'
         ? (document as Invoice).invoiceNumber
         : (document as DeliveryChallan).challanNumber;
       
-      doc.fontSize(12).font('Helvetica');
-      doc.text(`Document Number: ${docNumber}`, { align: 'left' });
-      doc.text(`Date: ${new Date(document.createdAt!).toLocaleDateString('en-GB')}`, { align: 'left' });
+      const docDate = new Date(document.createdAt!).toLocaleDateString('en-GB', {
+        day: '2-digit',
+        month: 'long',
+        year: 'numeric'
+      });
+
+      doc.fontSize(10)
+         .font('Helvetica-Bold')
+         .fillColor('#374151')
+         .text('Document Number:', margin, yPosition);
       
+      doc.fontSize(11)
+         .font('Helvetica')
+         .fillColor('#111827')
+         .text(docNumber, margin + 100, yPosition);
+
+      doc.fontSize(10)
+         .font('Helvetica-Bold')
+         .fillColor('#374151')
+         .text('Date:', pageWidth - margin - 150, yPosition);
+      
+      doc.fontSize(11)
+         .font('Helvetica')
+         .fillColor('#111827')
+         .text(docDate, pageWidth - margin - 100, yPosition);
+
+      yPosition += 25;
+
+      // Paid Stamp for Invoices
       if (type === 'invoice' && (document as Invoice).status === 'paid') {
-        doc.moveDown();
-        doc.fontSize(14).font('Helvetica-Bold').fillColor('green')
-          .text('PAID', { align: 'right' });
-        doc.fillColor('black');
+        const stampX = pageWidth - margin - 80;
+        const stampY = yPosition;
+        
+        doc.save();
+        doc.translate(stampX, stampY)
+           .rotate(-45)
+           .fontSize(32)
+           .font('Helvetica-Bold')
+           .fillColor('#10b981')
+           .text('PAID', 0, 0);
+        doc.restore();
+        
+        yPosition += 40;
       }
+
+      yPosition += 10;
+
+      // Customer Information Section
+      doc.fontSize(11)
+         .font('Helvetica-Bold')
+         .fillColor('#111827')
+         .text('Bill To:', margin, yPosition);
       
-      doc.moveDown(2);
+      yPosition += 15;
 
-      // Customer Information
-      doc.fontSize(12).font('Helvetica-Bold').text('Bill To:', { continued: false });
-      doc.font('Helvetica').fontSize(10);
-      doc.text(document.customerName);
+      doc.fontSize(10)
+         .font('Helvetica')
+         .fillColor('#374151')
+         .text(document.customerName, margin, yPosition);
+      yPosition += 12;
+
       if (document.customerAddress) {
-        doc.text(document.customerAddress);
+        doc.text(document.customerAddress, margin, yPosition);
+        yPosition += 12;
       }
+
       if ('customerEmail' in document && document.customerEmail) {
-        doc.text(document.customerEmail);
+        doc.text(document.customerEmail, margin, yPosition);
+        yPosition += 12;
       }
-      doc.moveDown(2);
 
-      // Items Table
+      yPosition += 15;
+
+      // Items Table Section
       if (Array.isArray(document.items) && document.items.length > 0) {
-        const tableTop = doc.y;
-        const itemHeight = 20;
-        let y = tableTop;
+        const tableTop = yPosition;
+        const rowHeight = 25;
+        const headerHeight = 30;
+        let currentY = tableTop;
 
-        // Table Header
-        doc.font('Helvetica-Bold').fontSize(10);
-        doc.text('Item', 50, y);
-        doc.text('Quantity', 250, y);
+        doc.rect(margin, currentY, contentWidth, headerHeight)
+           .fillColor('#1e40af')
+           .fill();
+
+        doc.fontSize(10)
+           .font('Helvetica-Bold')
+           .fillColor('#ffffff');
+
+        const colWidths = type !== 'challan' 
+          ? [contentWidth * 0.40, contentWidth * 0.15, contentWidth * 0.20, contentWidth * 0.25]
+          : [contentWidth * 0.50, contentWidth * 0.25, contentWidth * 0.25];
+
+        let xPos = margin + 10;
+        doc.text('Item', xPos, currentY + 8);
+        xPos += colWidths[0];
+        doc.text('Quantity', xPos, currentY + 8);
+        xPos += colWidths[1];
+        
         if (type !== 'challan') {
-          doc.text('Unit Price', 350, y);
-          doc.text('Total', 450, y);
+          doc.text('Unit Price', xPos, currentY + 8);
+          xPos += colWidths[2];
+          doc.text('Total', xPos, currentY + 8);
         } else {
-          doc.text('Unit', 350, y);
+          doc.text('Unit', xPos, currentY + 8);
         }
-        y += itemHeight;
 
-        // Table Rows
-        doc.font('Helvetica').fontSize(9);
-        document.items.forEach((item: any) => {
-          doc.text(item.name || 'N/A', 50, y, { width: 180 });
-          doc.text(String(item.quantity || 0), 250, y);
-          if (type !== 'challan') {
-            doc.text(`£${(typeof item.unitPrice === 'number' ? item.unitPrice : parseFloat(item.unitPrice || 0)).toFixed(2)}`, 350, y);
-            doc.text(`£${(typeof item.total === 'number' ? item.total : parseFloat(item.total || 0)).toFixed(2)}`, 450, y);
-          } else {
-            doc.text(item.unit || 'pcs', 350, y);
+        currentY += headerHeight;
+
+        doc.fontSize(9)
+           .font('Helvetica')
+           .fillColor('#111827');
+
+        document.items.forEach((item: any, index: number) => {
+          if (index % 2 === 0) {
+            doc.rect(margin, currentY, contentWidth, rowHeight)
+               .fillColor('#f9fafb')
+               .fill();
           }
-          y += itemHeight;
+
+          xPos = margin + 10;
+          
+          doc.text(item.name || 'N/A', xPos, currentY + 8, {
+            width: colWidths[0] - 10
+          });
+          xPos += colWidths[0];
+
+          doc.text(String(item.quantity || 0), xPos, currentY + 8);
+          xPos += colWidths[1];
+
+          if (type !== 'challan') {
+            doc.text(`£${(typeof item.unitPrice === 'number' ? item.unitPrice : parseFloat(item.unitPrice || 0)).toFixed(2)}`, xPos, currentY + 8);
+            xPos += colWidths[2];
+            doc.font('Helvetica-Bold')
+               .text(`£${(typeof item.total === 'number' ? item.total : parseFloat(item.total || 0)).toFixed(2)}`, xPos, currentY + 8);
+            doc.font('Helvetica');
+          } else {
+            doc.text(item.unit || 'pcs', xPos, currentY + 8);
+          }
+
+          currentY += rowHeight;
         });
 
-        // Draw lines
-        doc.moveTo(50, tableTop).lineTo(550, tableTop).stroke();
-        doc.moveTo(50, tableTop + itemHeight).lineTo(550, tableTop + itemHeight).stroke();
-        doc.moveTo(50, y).lineTo(550, y).stroke();
-        doc.y = y + 10;
+        doc.rect(margin, tableTop, contentWidth, currentY - tableTop)
+           .strokeColor('#d1d5db')
+           .lineWidth(1)
+           .stroke();
+
+        yPosition = currentY + 20;
       }
 
-      // Totals (for quotations and invoices)
+      // Totals Section (for quotations and invoices)
       if (type !== 'challan') {
         const docWithTotals = document as Quotation | Invoice;
-        doc.moveDown();
-        doc.font('Helvetica').fontSize(10);
-        doc.text(`Subtotal: £${(typeof docWithTotals.subtotal === 'string' ? parseFloat(docWithTotals.subtotal) : docWithTotals.subtotal || 0).toFixed(2)}`, { align: 'right' });
-        doc.text(`Tax Rate: ${(typeof docWithTotals.taxRate === 'string' ? parseFloat(docWithTotals.taxRate) : docWithTotals.taxRate || 0)}%`, { align: 'right' });
-        doc.text(`Tax Amount: £${(typeof docWithTotals.taxAmount === 'string' ? parseFloat(docWithTotals.taxAmount) : docWithTotals.taxAmount || 0).toFixed(2)}`, { align: 'right' });
-        doc.font('Helvetica-Bold').fontSize(12);
-        doc.text(`Total: £${(typeof docWithTotals.total === 'string' ? parseFloat(docWithTotals.total) : docWithTotals.total || 0).toFixed(2)}`, { align: 'right' });
+        const totalsStartX = pageWidth - margin - 200;
+        const totalsY = yPosition;
+
+        const subtotal = typeof docWithTotals.subtotal === 'string' 
+          ? parseFloat(docWithTotals.subtotal) 
+          : docWithTotals.subtotal || 0;
+        const taxRate = typeof docWithTotals.taxRate === 'string' 
+          ? parseFloat(docWithTotals.taxRate) 
+          : docWithTotals.taxRate || 0;
+        const taxAmount = typeof docWithTotals.taxAmount === 'string' 
+          ? parseFloat(docWithTotals.taxAmount) 
+          : docWithTotals.taxAmount || 0;
+        const total = typeof docWithTotals.total === 'string' 
+          ? parseFloat(docWithTotals.total) 
+          : docWithTotals.total || 0;
+
+        doc.rect(totalsStartX - 10, totalsY, 200, 80)
+           .fillColor('#f9fafb')
+           .fill();
+
+        let totalsYPos = totalsY + 10;
+
+        doc.fontSize(9)
+           .font('Helvetica')
+           .fillColor('#6b7280')
+           .text('Subtotal:', totalsStartX, totalsYPos);
+        doc.font('Helvetica-Bold')
+           .fillColor('#111827')
+           .text(`£${subtotal.toFixed(2)}`, totalsStartX + 100, totalsYPos, { align: 'right' });
+        totalsYPos += 15;
+
+        doc.font('Helvetica')
+           .fillColor('#6b7280')
+           .text(`Tax (${taxRate.toFixed(2)}%):`, totalsStartX, totalsYPos);
+        doc.font('Helvetica-Bold')
+           .fillColor('#111827')
+           .text(`£${taxAmount.toFixed(2)}`, totalsStartX + 100, totalsYPos, { align: 'right' });
+        totalsYPos += 15;
+
+        doc.moveTo(totalsStartX, totalsYPos)
+           .lineTo(totalsStartX + 180, totalsYPos)
+           .strokeColor('#d1d5db')
+           .lineWidth(1)
+           .stroke();
+        totalsYPos += 10;
+
+        doc.fontSize(12)
+           .font('Helvetica-Bold')
+           .fillColor('#1e40af')
+           .text('Total:', totalsStartX, totalsYPos);
+        doc.fontSize(14)
+           .text(`£${total.toFixed(2)}`, totalsStartX + 100, totalsYPos, { align: 'right' });
+
+        yPosition = totalsY + 90;
       }
 
-      // Notes
+      // Notes Section
       if (document.notes) {
-        doc.moveDown(2);
-        doc.font('Helvetica').fontSize(10);
-        doc.text('Notes:', { continued: false });
-        doc.text(document.notes);
+        yPosition += 10;
+        doc.fontSize(10)
+           .font('Helvetica-Bold')
+           .fillColor('#111827')
+           .text('Notes:', margin, yPosition);
+        yPosition += 15;
+        doc.fontSize(9)
+           .font('Helvetica')
+           .fillColor('#374151')
+           .text(document.notes, margin, yPosition, {
+             width: contentWidth,
+             align: 'left'
+           });
       }
 
       // Footer
       if (options.includeFooter !== false) {
-        const pageHeight = doc.page.height;
-        const pageWidth = doc.page.width;
-        doc.fontSize(8).font('Helvetica');
-        doc.text(
-          options.footerText || options.businessName || 'Thank you for your business!',
-          pageWidth / 2,
-          pageHeight - 50,
-          { align: 'center' }
-        );
+        const footerY = pageHeight - margin - 20;
+        doc.fontSize(8)
+           .font('Helvetica')
+           .fillColor('#9ca3af')
+           .text(
+             options.footerText || options.businessName || 'Thank you for your business!',
+             margin,
+             footerY,
+             {
+               width: contentWidth,
+               align: 'center'
+             }
+           );
       }
 
       doc.end();
@@ -167,77 +371,114 @@ export async function generateWord(
 ): Promise<Buffer> {
   const children: Paragraph[] = [];
 
-  // Header
+  // Header Section
   if (options.includeHeader !== false) {
     if (options.businessName) {
       children.push(
         new Paragraph({
-          text: options.businessName,
-          alignment: AlignmentType.CENTER,
-          heading: 'Heading1',
+          children: [
+            new TextRun({
+              text: options.businessName,
+              bold: true,
+              size: 32,
+              color: '1e40af',
+            }),
+          ],
+          alignment: AlignmentType.LEFT,
+          spacing: { after: 120 },
         })
       );
     }
+
     if (options.businessAddress) {
       children.push(
         new Paragraph({
           text: options.businessAddress,
-          alignment: AlignmentType.CENTER,
+          alignment: AlignmentType.LEFT,
+          spacing: { after: 80 },
         })
       );
     }
+
     if (options.businessEmail || options.businessPhone) {
       const contactInfo = [options.businessEmail, options.businessPhone].filter(Boolean).join(' | ');
       children.push(
         new Paragraph({
           text: contactInfo,
-          alignment: AlignmentType.CENTER,
+          alignment: AlignmentType.LEFT,
+          spacing: { after: 200 },
         })
       );
     }
-    children.push(new Paragraph({ text: '' }));
   }
 
   // Document Title
   const title = type === 'quotation' ? 'QUOTATION' : type === 'invoice' ? 'INVOICE' : 'DELIVERY CHALLAN';
   children.push(
     new Paragraph({
-      text: title,
+      children: [
+        new TextRun({
+          text: title,
+          bold: true,
+          size: 36,
+          color: '111827',
+        }),
+      ],
       alignment: AlignmentType.CENTER,
-      heading: 'Heading1',
+      shading: {
+        fill: 'f3f4f6',
+      },
+      spacing: { after: 200 },
     })
   );
-  children.push(new Paragraph({ text: '' }));
 
-  // Document Number and Date
+  // Document Details
   const docNumber = type === 'quotation'
     ? (document as Quotation).quotationNumber
     : type === 'invoice'
     ? (document as Invoice).invoiceNumber
     : (document as DeliveryChallan).challanNumber;
 
+  const docDate = new Date(document.createdAt!).toLocaleDateString('en-GB', {
+    day: '2-digit',
+    month: 'long',
+    year: 'numeric'
+  });
+
   children.push(
     new Paragraph({
       children: [
-        new TextRun({ text: `Document Number: ${docNumber}`, bold: true }),
+        new TextRun({ text: 'Document Number: ', bold: true }),
+        new TextRun({ text: docNumber }),
       ],
+      spacing: { after: 120 },
     })
   );
+  
   children.push(
     new Paragraph({
       children: [
-        new TextRun({ text: `Date: ${new Date(document.createdAt!).toLocaleDateString('en-GB')}` }),
+        new TextRun({ text: 'Date: ', bold: true }),
+        new TextRun({ text: docDate }),
       ],
+      spacing: { after: 200 },
     })
   );
 
+  // Paid Stamp for Invoices
   if (type === 'invoice' && (document as Invoice).status === 'paid') {
     children.push(
       new Paragraph({
         children: [
-          new TextRun({ text: 'PAID', bold: true, color: '008000' }),
+          new TextRun({
+            text: 'PAID',
+            bold: true,
+            size: 48,
+            color: '10b981',
+          }),
         ],
         alignment: AlignmentType.RIGHT,
+        spacing: { after: 200 },
       })
     );
   }
@@ -248,8 +489,9 @@ export async function generateWord(
   children.push(
     new Paragraph({
       children: [
-        new TextRun({ text: 'Bill To:', bold: true }),
+        new TextRun({ text: 'Bill To:', bold: true, size: 22 }),
       ],
+      spacing: { after: 120 },
     })
   );
   children.push(new Paragraph({ text: document.customerName }));
@@ -267,106 +509,205 @@ export async function generateWord(
 
     // Header Row
     const headerCells = [
-      new TableCell({ children: [new Paragraph({ text: 'Item', children: [new TextRun({ text: 'Item', bold: true })] })] }),
-      new TableCell({ children: [new Paragraph({ text: 'Quantity', children: [new TextRun({ text: 'Quantity', bold: true })] })] }),
+      new TableCell({
+        children: [new Paragraph({
+          children: [new TextRun({ text: 'Item', bold: true })],
+          alignment: AlignmentType.LEFT,
+        })],
+        shading: { fill: '1e40af' },
+        verticalAlign: 'center',
+      }),
+      new TableCell({
+        children: [new Paragraph({
+          children: [new TextRun({ text: 'Quantity', bold: true })],
+          alignment: AlignmentType.CENTER,
+        })],
+        shading: { fill: '1e40af' },
+        verticalAlign: 'center',
+      }),
     ];
+    
     if (type !== 'challan') {
       headerCells.push(
-        new TableCell({ children: [new Paragraph({ text: 'Unit Price', children: [new TextRun({ text: 'Unit Price', bold: true })] })] }),
-        new TableCell({ children: [new Paragraph({ text: 'Total', children: [new TextRun({ text: 'Total', bold: true })] })] })
+        new TableCell({
+          children: [new Paragraph({
+            children: [new TextRun({ text: 'Unit Price', bold: true })],
+            alignment: AlignmentType.RIGHT,
+          })],
+          shading: { fill: '1e40af' },
+          verticalAlign: 'center',
+        }),
+        new TableCell({
+          children: [new Paragraph({
+            children: [new TextRun({ text: 'Total', bold: true })],
+            alignment: AlignmentType.RIGHT,
+          })],
+          shading: { fill: '1e40af' },
+          verticalAlign: 'center',
+        })
       );
     } else {
       headerCells.push(
-        new TableCell({ children: [new Paragraph({ text: 'Unit', children: [new TextRun({ text: 'Unit', bold: true })] })] })
+        new TableCell({
+          children: [new Paragraph({
+            children: [new TextRun({ text: 'Unit', bold: true })],
+            alignment: AlignmentType.CENTER,
+          })],
+          shading: { fill: '1e40af' },
+          verticalAlign: 'center',
+        })
       );
     }
-    tableRows.push(new TableRow({ children: headerCells }));
+    
+    tableRows.push(new TableRow({ 
+      children: headerCells,
+      tableHeader: true,
+    }));
 
     // Data Rows
-    document.items.forEach((item: any) => {
+    document.items.forEach((item: any, index: number) => {
       const cells = [
-        new TableCell({ children: [new Paragraph({ text: item.name || 'N/A' })] }),
-        new TableCell({ children: [new Paragraph({ text: String(item.quantity || 0) })] }),
+        new TableCell({
+          children: [new Paragraph({
+            text: item.name || 'N/A',
+            alignment: AlignmentType.LEFT,
+          })],
+          shading: index % 2 === 0 ? { fill: 'f9fafb' } : undefined,
+        }),
+        new TableCell({
+          children: [new Paragraph({
+            text: String(item.quantity || 0),
+            alignment: AlignmentType.CENTER,
+          })],
+          shading: index % 2 === 0 ? { fill: 'f9fafb' } : undefined,
+        }),
       ];
+      
       if (type !== 'challan') {
         cells.push(
-          new TableCell({ children: [new Paragraph({ text: `£${(typeof item.unitPrice === 'number' ? item.unitPrice : parseFloat(item.unitPrice || 0)).toFixed(2)}` })] }),
-          new TableCell({ children: [new Paragraph({ text: `£${(typeof item.total === 'number' ? item.total : parseFloat(item.total || 0)).toFixed(2)}` })] })
+          new TableCell({
+            children: [new Paragraph({
+              text: `£${(typeof item.unitPrice === 'number' ? item.unitPrice : parseFloat(item.unitPrice || 0)).toFixed(2)}`,
+              alignment: AlignmentType.RIGHT,
+            })],
+            shading: index % 2 === 0 ? { fill: 'f9fafb' } : undefined,
+          }),
+          new TableCell({
+            children: [new Paragraph({
+              children: [new TextRun({
+                text: `£${(typeof item.total === 'number' ? item.total : parseFloat(item.total || 0)).toFixed(2)}`,
+                bold: true,
+              })],
+              alignment: AlignmentType.RIGHT,
+            })],
+            shading: index % 2 === 0 ? { fill: 'f9fafb' } : undefined,
+          })
         );
       } else {
         cells.push(
-          new TableCell({ children: [new Paragraph({ text: item.unit || 'pcs' })] })
+          new TableCell({
+            children: [new Paragraph({
+              text: item.unit || 'pcs',
+              alignment: AlignmentType.CENTER,
+            })],
+            shading: index % 2 === 0 ? { fill: 'f9fafb' } : undefined,
+          })
         );
       }
+      
       tableRows.push(new TableRow({ children: cells }));
     });
 
     const table = new Table({
       rows: tableRows,
       width: { size: 100, type: WidthType.PERCENTAGE },
+      borders: {
+        top: { style: BorderStyle.SINGLE, size: 1, color: 'd1d5db' },
+        bottom: { style: BorderStyle.SINGLE, size: 1, color: 'd1d5db' },
+        left: { style: BorderStyle.SINGLE, size: 1, color: 'd1d5db' },
+        right: { style: BorderStyle.SINGLE, size: 1, color: 'd1d5db' },
+        insideHorizontal: { style: BorderStyle.SINGLE, size: 1, color: 'd1d5db' },
+        insideVertical: { style: BorderStyle.SINGLE, size: 1, color: 'd1d5db' },
+      },
     });
 
     children.push(table);
     children.push(new Paragraph({ text: '' }));
   }
 
-  // Totals (for quotations and invoices)
+  // Totals Section
   if (type !== 'challan') {
     const docWithTotals = document as Quotation | Invoice;
+    const subtotal = typeof docWithTotals.subtotal === 'string' 
+      ? parseFloat(docWithTotals.subtotal) 
+      : docWithTotals.subtotal || 0;
+    const taxRate = typeof docWithTotals.taxRate === 'string' 
+      ? parseFloat(docWithTotals.taxRate) 
+      : docWithTotals.taxRate || 0;
+    const taxAmount = typeof docWithTotals.taxAmount === 'string' 
+      ? parseFloat(docWithTotals.taxAmount) 
+      : docWithTotals.taxAmount || 0;
+    const total = typeof docWithTotals.total === 'string' 
+      ? parseFloat(docWithTotals.total) 
+      : docWithTotals.total || 0;
+
     children.push(
       new Paragraph({
         children: [
-          new TextRun({ text: `Subtotal: £${(typeof docWithTotals.subtotal === 'string' ? parseFloat(docWithTotals.subtotal) : docWithTotals.subtotal || 0).toFixed(2)}` }),
+          new TextRun({ text: 'Subtotal: ', size: 20 }),
+          new TextRun({ text: `£${subtotal.toFixed(2)}`, bold: true, size: 20 }),
         ],
         alignment: AlignmentType.RIGHT,
+        spacing: { after: 80 },
       })
     );
     children.push(
       new Paragraph({
         children: [
-          new TextRun({ text: `Tax Rate: ${(typeof docWithTotals.taxRate === 'string' ? parseFloat(docWithTotals.taxRate) : docWithTotals.taxRate || 0)}%` }),
+          new TextRun({ text: `Tax (${taxRate.toFixed(2)}%): `, size: 20 }),
+          new TextRun({ text: `£${taxAmount.toFixed(2)}`, bold: true, size: 20 }),
         ],
         alignment: AlignmentType.RIGHT,
+        spacing: { after: 80 },
       })
     );
     children.push(
       new Paragraph({
         children: [
-          new TextRun({ text: `Tax Amount: £${(typeof docWithTotals.taxAmount === 'string' ? parseFloat(docWithTotals.taxAmount) : docWithTotals.taxAmount || 0).toFixed(2)}` }),
+          new TextRun({ text: 'Total: ', bold: true, size: 24, color: '1e40af' }),
+          new TextRun({ text: `£${total.toFixed(2)}`, bold: true, size: 28, color: '1e40af' }),
         ],
         alignment: AlignmentType.RIGHT,
-      })
-    );
-    children.push(
-      new Paragraph({
-        children: [
-          new TextRun({ text: `Total: £${(typeof docWithTotals.total === 'string' ? parseFloat(docWithTotals.total) : docWithTotals.total || 0).toFixed(2)}`, bold: true }),
-        ],
-        alignment: AlignmentType.RIGHT,
+        spacing: { after: 200 },
       })
     );
   }
 
   // Notes
   if (document.notes) {
-    children.push(new Paragraph({ text: '' }));
     children.push(
       new Paragraph({
         children: [
-          new TextRun({ text: 'Notes:', bold: true }),
+          new TextRun({ text: 'Notes:', bold: true, size: 22 }),
         ],
+        spacing: { after: 120 },
       })
     );
-    children.push(new Paragraph({ text: document.notes }));
+    children.push(
+      new Paragraph({
+        text: document.notes,
+        spacing: { after: 200 },
+      })
+    );
   }
 
   // Footer
   if (options.includeFooter !== false) {
-    children.push(new Paragraph({ text: '' }));
     children.push(
       new Paragraph({
         text: options.footerText || options.businessName || 'Thank you for your business!',
         alignment: AlignmentType.CENTER,
+        spacing: { before: 400 },
       })
     );
   }

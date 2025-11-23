@@ -20,7 +20,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Plus, Search, Eye, Download, Edit, Trash2, X, FileCheck, FileText, TruckIcon } from "lucide-react";
+import { Plus, Search, Eye, Download, Edit, Trash2, X, FileCheck, FileText, TruckIcon, CheckCircle2 } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { isUnauthorizedError } from "@/lib/authUtils";
 import { getAPIBaseURL } from "@/lib/api";
@@ -1262,6 +1262,18 @@ export default function Invoices() {
                         >
                           <Download className="h-4 w-4" />
                         </Button>
+                        {invoice.status !== 'paid' && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => markAsPaidMutation.mutate(invoice.id)}
+                            data-testid={`button-mark-paid-${invoice.id}`}
+                            title="Mark as Paid"
+                            disabled={markAsPaidMutation.isPending}
+                          >
+                            <CheckCircle2 className="h-4 w-4 text-green-600" />
+                          </Button>
+                        )}
                         <Button
                           variant="ghost"
                           size="icon"
