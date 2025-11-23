@@ -50,18 +50,18 @@ export async function generatePDF(
       if (options.includeHeader !== false) {
         if (options.businessName) {
           doc.fontSize(18).font('Helvetica-Bold').fillColor(...primaryRgb);
-          doc.text(options.businessName, margin, y, { width: contentWidth });
+          doc.text(options.businessName, margin, y);
           y += 24;
         }
         if (options.businessAddress) {
           doc.fontSize(10).font('Helvetica').fillColor(0, 0, 0);
-          doc.text(options.businessAddress, margin, y, { width: contentWidth });
+          doc.text(options.businessAddress, margin, y);
           y += 14;
         }
         if (options.businessEmail || options.businessPhone) {
           const contact = [options.businessEmail, options.businessPhone].filter(Boolean).join(' | ');
           doc.fontSize(9).font('Helvetica').fillColor(0.5, 0.5, 0.5);
-          doc.text(contact, margin, y, { width: contentWidth });
+          doc.text(contact, margin, y);
           y += 16;
         }
         doc.strokeColor(...primaryRgb).lineWidth(1).moveTo(margin, y).lineTo(pageWidth - margin, y).stroke();
@@ -69,8 +69,9 @@ export async function generatePDF(
       }
 
       // Title
+      const title = type === 'quotation' ? 'QUOTATION' : type === 'invoice' ? 'INVOICE' : 'DELIVERY CHALLAN';
       doc.fontSize(20).font('Helvetica-Bold').fillColor(0, 0, 0);
-      doc.text(type === 'quotation' ? 'QUOTATION' : type === 'invoice' ? 'INVOICE' : 'DELIVERY CHALLAN', margin, y, { align: 'center', width: contentWidth });
+      doc.text(title, margin, y, { align: 'center', width: contentWidth });
       y += 30;
 
       // Document Info
@@ -116,16 +117,16 @@ export async function generatePDF(
       }
       y += 20;
 
-      // Items Table - ONLY header background, NO row backgrounds
+      // Items Table
       if (Array.isArray(document.items) && document.items.length > 0) {
         const tableStartY = y;
         const rowHeight = 20;
         const headerHeight = 24;
 
-        // Header background ONLY
+        // Header background
         doc.rect(margin, y, contentWidth, headerHeight).fillColor(...primaryRgb).fill();
         
-        // Header text - MUST reset fillColor
+        // Header text
         doc.fontSize(10).font('Helvetica-Bold').fillColor(1, 1, 1);
         const col1 = margin + 8;
         const col2 = margin + contentWidth * 0.50;
@@ -141,18 +142,25 @@ export async function generatePDF(
         }
         y += headerHeight;
 
-        // Rows - NO backgrounds, just text
+        // Rows
         doc.fontSize(9).font('Helvetica').fillColor(0, 0, 0);
         document.items.forEach((item: any) => {
-          doc.text(item.name || 'N/A', col1, y + 5, { width: col2 - col1 - 10 });
-          doc.text(String(item.quantity || 0), col2, y + 5);
+          const itemName = item.name || 'N/A';
+          const quantity = String(item.quantity || 0);
+          
+          doc.text(itemName, col1, y + 5, { width: col2 - col1 - 10 });
+          doc.text(quantity, col2, y + 5);
           
           if (type !== 'challan') {
-            const price = typeof item.unitPrice === 'number' ? item.unitPrice : parseFloat(item.unitPrice || 0);
-            const total = typeof item.total === 'number' ? item.total : parseFloat(item.total || 0);
-            doc.text(`£${price.toFixed(2)}`, col3 - doc.widthOfString(`£${price.toFixed(2)}`), y + 5);
+            const unitPrice = typeof item.unitPrice === 'number' ? item.unitPrice : parseFloat(String(item.unitPrice || 0));
+            const itemTotal = typeof item.total === 'number' ? item.total : parseFloat(String(item.total || 0));
+            
+            const priceText = `£${unitPrice.toFixed(2)}`;
+            doc.text(priceText, col3 - doc.widthOfString(priceText), y + 5);
+            
+            const totalText = `£${itemTotal.toFixed(2)}`;
             doc.font('Helvetica-Bold');
-            doc.text(`£${total.toFixed(2)}`, col4 - doc.widthOfString(`£${total.toFixed(2)}`), y + 5);
+            doc.text(totalText, col4 - doc.widthOfString(totalText), y + 5);
             doc.font('Helvetica');
           } else {
             doc.text(item.unit || 'pcs', col3, y + 5);
@@ -160,32 +168,34 @@ export async function generatePDF(
           y += rowHeight;
         });
 
-        // Border only
+        // Border
         doc.strokeColor(0.8, 0.8, 0.8).lineWidth(0.5);
         doc.rect(margin, tableStartY, contentWidth, y - tableStartY).stroke();
         y += 20;
       }
 
-      // Totals - NO background box, just text
+      // Totals
       if (type !== 'challan') {
         const docWithTotals = document as Quotation | Invoice;
-        const subtotal = typeof docWithTotals.subtotal === 'string' ? parseFloat(docWithTotals.subtotal) : docWithTotals.subtotal || 0;
-        const taxRate = typeof docWithTotals.taxRate === 'string' ? parseFloat(docWithTotals.taxRate) : docWithTotals.taxRate || 0;
-        const taxAmount = typeof docWithTotals.taxAmount === 'string' ? parseFloat(docWithTotals.taxAmount) : docWithTotals.taxAmount || 0;
-        const total = typeof docWithTotals.total === 'string' ? parseFloat(docWithTotals.total) : docWithTotals.total || 0;
+        const subtotal = typeof docWithTotals.subtotal === 'string' ? parseFloat(docWithTotals.subtotal) : (docWithTotals.subtotal || 0);
+        const taxRate = typeof docWithTotals.taxRate === 'string' ? parseFloat(docWithTotals.taxRate) : (docWithTotals.taxRate || 0);
+        const taxAmount = typeof docWithTotals.taxAmount === 'string' ? parseFloat(docWithTotals.taxAmount) : (docWithTotals.taxAmount || 0);
+        const total = typeof docWithTotals.total === 'string' ? parseFloat(docWithTotals.total) : (docWithTotals.total || 0);
 
         const totalsX = pageWidth - margin - 180;
         
         doc.fontSize(10).font('Helvetica').fillColor(0, 0, 0);
         doc.text('Subtotal:', totalsX, y);
+        const subtotalText = `£${subtotal.toFixed(2)}`;
         doc.font('Helvetica-Bold');
-        doc.text(`£${subtotal.toFixed(2)}`, totalsX + 160 - doc.widthOfString(`£${subtotal.toFixed(2)}`), y);
+        doc.text(subtotalText, totalsX + 160 - doc.widthOfString(subtotalText), y);
         y += 16;
 
         doc.font('Helvetica').fillColor(0, 0, 0);
         doc.text(`Tax (${taxRate.toFixed(2)}%):`, totalsX, y);
+        const taxText = `£${taxAmount.toFixed(2)}`;
         doc.font('Helvetica-Bold');
-        doc.text(`£${taxAmount.toFixed(2)}`, totalsX + 160 - doc.widthOfString(`£${taxAmount.toFixed(2)}`), y);
+        doc.text(taxText, totalsX + 160 - doc.widthOfString(taxText), y);
         y += 16;
 
         doc.strokeColor(0.7, 0.7, 0.7).lineWidth(1).moveTo(totalsX, y).lineTo(totalsX + 160, y).stroke();
@@ -193,8 +203,9 @@ export async function generatePDF(
 
         doc.fontSize(12).font('Helvetica-Bold').fillColor(...primaryRgb);
         doc.text('Total:', totalsX, y);
+        const totalText = `£${total.toFixed(2)}`;
         doc.fontSize(14);
-        doc.text(`£${total.toFixed(2)}`, totalsX + 160 - doc.widthOfString(`£${total.toFixed(2)}`), y);
+        doc.text(totalText, totalsX + 160 - doc.widthOfString(totalText), y);
         y += 25;
       }
 
@@ -233,6 +244,7 @@ export async function generateWord(
   const primaryColor = options.primaryColor || '#1e40af';
   const primaryColorWord = hexToWord(primaryColor);
 
+  // Header
   if (options.includeHeader !== false) {
     if (options.businessName) {
       children.push(new Paragraph({
@@ -249,6 +261,7 @@ export async function generateWord(
     }
   }
 
+  // Title
   const title = type === 'quotation' ? 'QUOTATION' : type === 'invoice' ? 'INVOICE' : 'DELIVERY CHALLAN';
   children.push(new Paragraph({
     children: [new TextRun({ text: title, bold: true, size: 32 })],
@@ -256,6 +269,7 @@ export async function generateWord(
     spacing: { after: 200 },
   }));
 
+  // Document Info
   const docNumber = type === 'quotation'
     ? (document as Quotation).quotationNumber
     : type === 'invoice'
@@ -269,6 +283,7 @@ export async function generateWord(
     spacing: { after: 200 },
   }));
 
+  // Paid Stamp
   if (type === 'invoice' && (document as Invoice).status === 'paid') {
     children.push(new Paragraph({
       children: [new TextRun({ text: 'PAID', bold: true, size: 40, color: '10b981' })],
@@ -277,6 +292,7 @@ export async function generateWord(
     }));
   }
 
+  // Bill To
   children.push(new Paragraph({
     children: [new TextRun({ text: 'Bill To:', bold: true, size: 20 })],
     spacing: { after: 120 },
@@ -290,8 +306,11 @@ export async function generateWord(
   }
   children.push(new Paragraph({ text: '' }));
 
+  // Items Table
   if (Array.isArray(document.items) && document.items.length > 0) {
     const tableRows: TableRow[] = [];
+    
+    // Header
     const headerCells = [
       new TableCell({
         children: [new Paragraph({
@@ -306,6 +325,7 @@ export async function generateWord(
         shading: { fill: primaryColorWord },
       }),
     ];
+    
     if (type !== 'challan') {
       headerCells.push(
         new TableCell({
@@ -331,19 +351,21 @@ export async function generateWord(
     }
     tableRows.push(new TableRow({ children: headerCells }));
 
+    // Data Rows
     document.items.forEach((item: any) => {
       const cells = [
         new TableCell({ children: [new Paragraph({ text: item.name || 'N/A' })] }),
         new TableCell({ children: [new Paragraph({ text: String(item.quantity || 0) })] }),
       ];
+      
       if (type !== 'challan') {
-        const price = typeof item.unitPrice === 'number' ? item.unitPrice : parseFloat(item.unitPrice || 0);
-        const total = typeof item.total === 'number' ? item.total : parseFloat(item.total || 0);
+        const unitPrice = typeof item.unitPrice === 'number' ? item.unitPrice : parseFloat(String(item.unitPrice || 0));
+        const itemTotal = typeof item.total === 'number' ? item.total : parseFloat(String(item.total || 0));
         cells.push(
-          new TableCell({ children: [new Paragraph({ text: `£${price.toFixed(2)}` })] }),
+          new TableCell({ children: [new Paragraph({ text: `£${unitPrice.toFixed(2)}` })] }),
           new TableCell({
             children: [new Paragraph({
-              children: [new TextRun({ text: `£${total.toFixed(2)}`, bold: true })],
+              children: [new TextRun({ text: `£${itemTotal.toFixed(2)}`, bold: true })],
             })],
           })
         );
@@ -368,12 +390,13 @@ export async function generateWord(
     children.push(new Paragraph({ text: '' }));
   }
 
+  // Totals
   if (type !== 'challan') {
     const docWithTotals = document as Quotation | Invoice;
-    const subtotal = typeof docWithTotals.subtotal === 'string' ? parseFloat(docWithTotals.subtotal) : docWithTotals.subtotal || 0;
-    const taxRate = typeof docWithTotals.taxRate === 'string' ? parseFloat(docWithTotals.taxRate) : docWithTotals.taxRate || 0;
-    const taxAmount = typeof docWithTotals.taxAmount === 'string' ? parseFloat(docWithTotals.taxAmount) : docWithTotals.taxAmount || 0;
-    const total = typeof docWithTotals.total === 'string' ? parseFloat(docWithTotals.total) : docWithTotals.total || 0;
+    const subtotal = typeof docWithTotals.subtotal === 'string' ? parseFloat(docWithTotals.subtotal) : (docWithTotals.subtotal || 0);
+    const taxRate = typeof docWithTotals.taxRate === 'string' ? parseFloat(docWithTotals.taxRate) : (docWithTotals.taxRate || 0);
+    const taxAmount = typeof docWithTotals.taxAmount === 'string' ? parseFloat(docWithTotals.taxAmount) : (docWithTotals.taxAmount || 0);
+    const total = typeof docWithTotals.total === 'string' ? parseFloat(docWithTotals.total) : (docWithTotals.total || 0);
 
     children.push(new Paragraph({
       children: [new TextRun({ text: 'Subtotal: ' }), new TextRun({ text: `£${subtotal.toFixed(2)}`, bold: true })],
@@ -395,6 +418,7 @@ export async function generateWord(
     }));
   }
 
+  // Notes
   if (document.notes) {
     children.push(new Paragraph({
       children: [new TextRun({ text: 'Notes:', bold: true, size: 20 })],
@@ -403,6 +427,7 @@ export async function generateWord(
     children.push(new Paragraph({ text: document.notes, spacing: { after: 200 } }));
   }
 
+  // Footer
   if (options.includeFooter !== false) {
     children.push(new Paragraph({
       children: [new TextRun({
