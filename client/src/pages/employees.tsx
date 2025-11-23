@@ -78,7 +78,13 @@ export default function Employees() {
 
   const createMutation = useMutation({
     mutationFn: async (data: EmployeeFormData) => {
-      return await apiRequest("POST", "/api/employees", data);
+      // Transform data for API
+      const payload: any = {
+        ...data,
+        salary: data.salary !== undefined && data.salary !== null && data.salary !== '' ? data.salary : undefined,
+        startDate: data.startDate ? new Date(data.startDate).toISOString() : undefined,
+      };
+      return await apiRequest("POST", "/api/employees", payload);
     },
     onSuccess: () => {
       toast({

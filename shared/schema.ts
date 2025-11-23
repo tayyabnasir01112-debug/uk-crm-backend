@@ -274,6 +274,17 @@ export const insertEmployeeSchema = createInsertSchema(employees).omit({
   id: true,
   createdAt: true,
   updatedAt: true,
+}).extend({
+  salary: z.union([z.string(), z.number()]).optional().transform((val) => {
+    if (val === undefined || val === null || val === '') return undefined;
+    return typeof val === 'number' ? val.toString() : val;
+  }),
+  startDate: z.preprocess((val) => {
+    if (val === undefined || val === null || val === '') return undefined;
+    if (val instanceof Date) return val;
+    if (typeof val === 'string') return new Date(val);
+    return val;
+  }, z.date().optional()),
 });
 
 export type InsertEmployee = z.infer<typeof insertEmployeeSchema>;
