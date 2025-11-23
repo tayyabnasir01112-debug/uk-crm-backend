@@ -138,8 +138,10 @@ export async function generatePDF(
         const headerHeight = 24;
 
         // Header background - draw rectangle with primary color
+        doc.save();
         doc.fillColor(...primaryRgb);
         doc.rect(margin, y, contentWidth, headerHeight).fill();
+        doc.restore();
         
         // Header text - white on colored background
         doc.fillColor(1, 1, 1);
@@ -196,24 +198,15 @@ export async function generatePDF(
         y += 20;
       }
 
-      // Totals - Use calculated values if document totals are 0
+      // Totals - Always calculate from items to ensure accuracy
       if (type !== 'challan') {
         const docWithTotals = document as Quotation | Invoice;
-        let subtotal = parseDecimal(docWithTotals.subtotal);
-        const taxRate = parseDecimal(docWithTotals.taxRate);
-        let taxAmount = parseDecimal(docWithTotals.taxAmount);
-        let total = parseDecimal(docWithTotals.total);
-
-        // Recalculate if totals are 0 or missing
-        if (subtotal === 0 && calculatedSubtotal > 0) {
-          subtotal = calculatedSubtotal;
-        }
-        if (taxAmount === 0 && subtotal > 0 && taxRate > 0) {
-          taxAmount = subtotal * (taxRate / 100);
-        }
-        if (total === 0 && subtotal > 0) {
-          total = subtotal + taxAmount;
-        }
+        const taxRate = parseDecimal(docWithTotals.taxRate) || 20;
+        
+        // Always use calculated subtotal from items
+        const subtotal = calculatedSubtotal > 0 ? calculatedSubtotal : parseDecimal(docWithTotals.subtotal);
+        const taxAmount = subtotal * (taxRate / 100);
+        const total = subtotal + taxAmount;
 
         const totalsX = pageWidth - margin - 180;
         
