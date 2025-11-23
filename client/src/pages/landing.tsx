@@ -307,14 +307,91 @@ export default function Landing() {
       {/* Footer */}
       <footer className="py-12 bg-card border-t border-card-border">
         <div className="container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center">
-            <p className="text-muted-foreground mb-4">
-              &copy; {new Date().getFullYear()} CRM Launch. All rights reserved.
-            </p>
-            <p className="text-sm text-muted-foreground mb-2">
-              Designed for UK small businesses • Secure payments via Stripe & PayPal
-            </p>
-            <p className="text-xs text-muted-foreground">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-8">
+            {/* Company Info */}
+            <div>
+              <h3 className="font-semibold mb-4">CRM Launch</h3>
+              <p className="text-sm text-muted-foreground">
+                Professional CRM software for UK small businesses. Manage invoices, quotations, inventory & HR in one place.
+              </p>
+            </div>
+            
+            {/* Quick Links */}
+            <div>
+              <h3 className="font-semibold mb-4">Quick Links</h3>
+              <ul className="space-y-2 text-sm">
+                <li>
+                  <Link href="/about" className="text-muted-foreground hover:text-foreground transition-colors">
+                    About Us
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/contact" className="text-muted-foreground hover:text-foreground transition-colors">
+                    Contact
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/faq" className="text-muted-foreground hover:text-foreground transition-colors">
+                    FAQ
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/login?signup=true" className="text-muted-foreground hover:text-foreground transition-colors">
+                    Start Free Trial
+                  </Link>
+                </li>
+              </ul>
+            </div>
+            
+            {/* Legal */}
+            <div>
+              <h3 className="font-semibold mb-4">Legal</h3>
+              <ul className="space-y-2 text-sm">
+                <li>
+                  <Link href="/privacy" className="text-muted-foreground hover:text-foreground transition-colors">
+                    Privacy Policy
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/terms" className="text-muted-foreground hover:text-foreground transition-colors">
+                    Terms of Service
+                  </Link>
+                </li>
+              </ul>
+            </div>
+            
+            {/* Support */}
+            <div>
+              <h3 className="font-semibold mb-4">Support</h3>
+              <ul className="space-y-2 text-sm">
+                <li>
+                  <a 
+                    href="mailto:help@crmlaunch.co.uk" 
+                    className="text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    help@crmlaunch.co.uk
+                  </a>
+                </li>
+                <li className="text-muted-foreground">
+                  Monday - Friday<br />
+                  9:00 AM - 5:00 PM GMT
+                </li>
+              </ul>
+            </div>
+          </div>
+          
+          <div className="border-t border-card-border pt-8">
+            <div className="flex flex-col md:flex-row justify-between items-center gap-4">
+              <p className="text-sm text-muted-foreground text-center md:text-left">
+                &copy; {new Date().getFullYear()} CRM Launch. All rights reserved.
+              </p>
+              <div className="flex flex-wrap items-center justify-center gap-4 text-sm text-muted-foreground">
+                <span>Designed for UK small businesses</span>
+                <span>•</span>
+                <span>Secure payments via Stripe & PayPal</span>
+              </div>
+            </div>
+            <p className="text-xs text-muted-foreground text-center mt-4">
               Powered by{" "}
               <a 
                 href="https://tayyabautomates.com/" 
