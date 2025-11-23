@@ -66,13 +66,14 @@ export async function generatePDF(
       const contentWidth = pageWidth - (margin * 2);
       const primaryColor = options.primaryColor || '#1e40af';
       const primaryRgb = hexToRgb(primaryColor);
-      console.log('PDF Generation - Primary Color:', primaryColor, 'RGB:', primaryRgb);
+      console.log('PDF Generation - Primary Color:', primaryColor, 'RGB:', primaryRgb, 'Options:', JSON.stringify(options));
       let y = margin;
 
       // Header
       if (options.includeHeader !== false) {
         if (options.businessName) {
-          doc.fontSize(18).font('Helvetica-Bold').fillColor(...primaryRgb);
+          doc.fontSize(18).font('Helvetica-Bold');
+          doc.fillColor(...primaryRgb); // Set color explicitly
           doc.text(options.businessName, margin, y);
           y += 24;
         }
@@ -156,8 +157,8 @@ export async function generatePDF(
         doc.rect(margin, y, contentWidth, headerHeight).fill();
         
         // Header text - white on colored background (explicitly set after fill)
-        doc.fillColor(1, 1, 1);
         doc.fontSize(10).font('Helvetica-Bold');
+        doc.fillColor(1, 1, 1); // Set white color AFTER setting font
         const col1 = margin + 8;
         const col2 = margin + contentWidth * 0.50;
         const col3 = margin + contentWidth * 0.70;
@@ -239,10 +240,13 @@ export async function generatePDF(
         doc.strokeColor(0.7, 0.7, 0.7).lineWidth(1).moveTo(totalsX, y).lineTo(totalsX + 160, y).stroke();
         y += 10;
 
-        doc.fontSize(12).font('Helvetica-Bold').fillColor(...primaryRgb);
+        // Total - use primary color
+        doc.fontSize(12).font('Helvetica-Bold');
+        doc.fillColor(...primaryRgb);
         doc.text('Total:', totalsX, y);
         const totalText = `£${total.toFixed(2)}`;
         doc.fontSize(14);
+        doc.fillColor(...primaryRgb); // Ensure color is set again
         doc.text(totalText, totalsX + 160 - doc.widthOfString(totalText), y);
         y += 25;
       }
