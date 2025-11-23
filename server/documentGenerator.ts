@@ -58,18 +58,18 @@ export async function generatePDF(
       // Header Section
       if (options.includeHeader !== false) {
         if (options.businessName) {
-          doc.fontSize(22)
+          doc.fontSize(20)
              .font('Helvetica-Bold')
              .fillColor(...primaryRgb)
-             .text(options.businessName, margin, yPos);
-          yPos += 28;
+             .text(options.businessName, margin, yPos, { width: contentWidth });
+          yPos += 26;
         }
 
         if (options.businessAddress) {
           doc.fontSize(10)
              .font('Helvetica')
              .fillColor(0, 0, 0)
-             .text(options.businessAddress, margin, yPos);
+             .text(options.businessAddress, margin, yPos, { width: contentWidth });
           yPos += 14;
         }
 
@@ -78,8 +78,8 @@ export async function generatePDF(
           doc.fontSize(9)
              .font('Helvetica')
              .fillColor(0.4, 0.4, 0.4)
-             .text(contact, margin, yPos);
-          yPos += 18;
+             .text(contact, margin, yPos, { width: contentWidth });
+          yPos += 16;
         }
 
         // Header separator line
@@ -88,16 +88,16 @@ export async function generatePDF(
            .moveTo(margin, yPos)
            .lineTo(pageWidth - margin, yPos)
            .stroke();
-        yPos += 25;
+        yPos += 20;
       }
 
       // Document Title
       const title = type === 'quotation' ? 'QUOTATION' : type === 'invoice' ? 'INVOICE' : 'DELIVERY CHALLAN';
-      doc.fontSize(24)
+      doc.fontSize(22)
          .font('Helvetica-Bold')
          .fillColor(0, 0, 0)
          .text(title, margin, yPos, { align: 'center', width: contentWidth });
-      yPos += 35;
+      yPos += 32;
 
       // Document Number and Date
       const docNumber = type === 'quotation' 
@@ -115,54 +115,63 @@ export async function generatePDF(
       doc.fontSize(10)
          .font('Helvetica')
          .fillColor(0, 0, 0);
+      
+      // Document number on left
       doc.text(`Document Number: ${docNumber}`, margin, yPos);
-      doc.text(`Date: ${docDate}`, pageWidth - margin - 150, yPos, { align: 'right' });
-      yPos += 25;
+      
+      // Date on right - calculate width for right alignment
+      const dateText = `Date: ${docDate}`;
+      const dateWidth = doc.widthOfString(dateText);
+      doc.text(dateText, pageWidth - margin - dateWidth, yPos);
+      
+      yPos += 22;
 
       // Paid Stamp for Invoices
       if (type === 'invoice' && (document as Invoice).status === 'paid') {
         doc.save();
-        doc.translate(pageWidth - margin - 70, yPos + 30)
+        const stampX = pageWidth - margin - 100;
+        const stampY = yPos + 20;
+        doc.translate(stampX, stampY)
            .rotate(-45)
-           .fontSize(36)
+           .fontSize(32)
            .font('Helvetica-Bold')
            .fillColor(0.06, 0.73, 0.51); // Green
         doc.text('PAID', 0, 0);
         doc.restore();
       }
 
-      yPos += 20;
+      yPos += 18;
 
       // Bill To Section
       doc.fontSize(11)
          .font('Helvetica-Bold')
          .fillColor(0, 0, 0)
          .text('Bill To:', margin, yPos);
-      yPos += 16;
+      yPos += 15;
 
       doc.fontSize(10)
          .font('Helvetica')
          .fillColor(0, 0, 0)
          .text(document.customerName, margin, yPos);
-      yPos += 13;
+      yPos += 12;
 
       if (document.customerAddress) {
         doc.text(document.customerAddress, margin, yPos);
-        yPos += 13;
+        yPos += 12;
       }
 
       if ('customerEmail' in document && document.customerEmail) {
         doc.text(document.customerEmail, margin, yPos);
-        yPos += 13;
+        yPos += 12;
       }
 
-      yPos += 20;
+      yPos += 18;
 
       // Items Table
       if (Array.isArray(document.items) && document.items.length > 0) {
         const tableTop = yPos;
-        const rowHeight = 22;
-        const headerHeight = 28;
+        const rowHeight = 20;
+        const headerHeight = 26;
         let currentY = tableTop;
 
         // Table Header Background
@@ -175,18 +184,21 @@ export async function generatePDF(
            .font('Helvetica-Bold')
            .fillColor(1, 1, 1);
 
-        const colWidths = type !== 'challan' 
-          ? [contentWidth * 0.45, contentWidth * 0.15, contentWidth * 0.20, contentWidth * 0.20]
-          : [contentWidth * 0.50, contentWidth * 0.25, contentWidth * 0.25];
+        // Column positions
+        const col1X = margin + 8;
+        const col2X = margin + contentWidth * 0.50;
+        const col3X = margin + contentWidth * 0.70;
+        const col4X = margin + contentWidth * 0.85;
 
-        doc.text('Item', margin + 8, currentY + 8);
-        doc.text('Qty', margin + contentWidth * 0.45 + 8, currentY + 8);
+        doc.text('Item', col1X, currentY + 7);
+        doc.text('Qty', col2X, currentY + 7);
         
         if (type !== 'challan') {
-          doc.text('Unit Price', margin + contentWidth * 0.60 + 8, currentY + 8);
-          doc.text('Total', margin + contentWidth * 0.80 + 8, currentY + 8);
+          doc.text('Unit Price', col3X, currentY + 7);
+          const totalLabelWidth = doc.widthOfString('Total');
+          doc.text('Total', col4X - totalLabelWidth, currentY + 7);
         } else {
-          doc.text('Unit', margin + contentWidth * 0.60 + 8, currentY + 8);
+          doc.text('Unit', col3X, currentY + 7);
         }
 
         currentY += headerHeight;
@@ -207,20 +219,28 @@ export async function generatePDF(
           // Reset fill color for text
           doc.fillColor(0, 0, 0);
 
-          doc.text(item.name || 'N/A', margin + 8, currentY + 6, {
-            width: colWidths[0] - 10
+          // Item name
+          doc.text(item.name || 'N/A', col1X, currentY + 5, {
+            width: col2X - col1X - 10
           });
-          doc.text(String(item.quantity || 0), margin + contentWidth * 0.45 + 8, currentY + 6);
+          
+          // Quantity
+          doc.text(String(item.quantity || 0), col2X, currentY + 5);
           
           if (type !== 'challan') {
-            const price = typeof item.unitPrice === 'number' ? item.unitPrice : parseFloat(item.unitPrice || 0);
-            const total = typeof item.total === 'number' ? item.total : parseFloat(item.total || 0);
-            doc.text(`£${price.toFixed(2)}`, margin + contentWidth * 0.60 + 8, currentY + 6, { align: 'right' });
+            // Unit price
+            const priceText = `£${(typeof item.unitPrice === 'number' ? item.unitPrice : parseFloat(item.unitPrice || 0)).toFixed(2)}`;
+            const priceWidth = doc.widthOfString(priceText);
+            doc.text(priceText, col3X - priceWidth, currentY + 5);
+            
+            // Total
+            const totalText = `£${(typeof item.total === 'number' ? item.total : parseFloat(item.total || 0)).toFixed(2)}`;
+            const totalWidth = doc.widthOfString(totalText);
             doc.font('Helvetica-Bold');
-            doc.text(`£${total.toFixed(2)}`, margin + contentWidth * 0.80 + 8, currentY + 6, { align: 'right' });
+            doc.text(totalText, col4X - totalWidth, currentY + 5);
             doc.font('Helvetica');
           } else {
-            doc.text(item.unit || 'pcs', margin + contentWidth * 0.60 + 8, currentY + 6);
+            doc.text(item.unit || 'pcs', col3X, currentY + 5);
           }
 
           currentY += rowHeight;
@@ -232,7 +252,7 @@ export async function generatePDF(
            .rect(margin, tableTop, contentWidth, currentY - tableTop)
            .stroke();
 
-        yPos = currentY + 25;
+        yPos = currentY + 22;
       }
 
       // Totals Section
@@ -251,60 +271,65 @@ export async function generatePDF(
           ? parseFloat(docWithTotals.total) 
           : docWithTotals.total || 0;
 
-        const totalsX = pageWidth - margin - 220;
+        const totalsX = pageWidth - margin - 200;
         const totalsY = yPos;
 
         // Totals background box
-        doc.rect(totalsX - 10, totalsY, 210, 85)
+        doc.rect(totalsX - 10, totalsY, 200, 80)
            .fillColor(0.98, 0.98, 0.98)
            .fill();
 
-        let totalsYPos = totalsY + 12;
+        let totalsYPos = totalsY + 10;
 
         // Subtotal
         doc.fontSize(10)
            .font('Helvetica')
-           .fillColor(0, 0, 0)
-           .text('Subtotal:', totalsX, totalsYPos);
-        doc.font('Helvetica-Bold')
-           .text(`£${subtotal.toFixed(2)}`, totalsX + 130, totalsYPos, { align: 'right' });
-        totalsYPos += 18;
+           .fillColor(0, 0, 0);
+        doc.text('Subtotal:', totalsX, totalsYPos);
+        const subtotalText = `£${subtotal.toFixed(2)}`;
+        const subtotalWidth = doc.widthOfString(subtotalText);
+        doc.font('Helvetica-Bold');
+        doc.text(subtotalText, totalsX + 180 - subtotalWidth, totalsYPos);
+        totalsYPos += 16;
 
         // Tax
-        doc.font('Helvetica')
-           .text(`Tax (${taxRate.toFixed(2)}%):`, totalsX, totalsYPos);
-        doc.font('Helvetica-Bold')
-           .text(`£${taxAmount.toFixed(2)}`, totalsX + 130, totalsYPos, { align: 'right' });
-        totalsYPos += 18;
+        doc.font('Helvetica');
+        doc.text(`Tax (${taxRate.toFixed(2)}%):`, totalsX, totalsYPos);
+        const taxText = `£${taxAmount.toFixed(2)}`;
+        const taxWidth = doc.widthOfString(taxText);
+        doc.font('Helvetica-Bold');
+        doc.text(taxText, totalsX + 180 - taxWidth, totalsYPos);
+        totalsYPos += 16;
 
         // Divider line
         doc.strokeColor(0.7, 0.7, 0.7)
            .lineWidth(1)
            .moveTo(totalsX, totalsYPos)
-           .lineTo(totalsX + 190, totalsYPos)
+           .lineTo(totalsX + 180, totalsYPos)
            .stroke();
-        totalsYPos += 12;
+        totalsYPos += 10;
 
         // Total
         doc.fontSize(12)
            .font('Helvetica-Bold')
-           .fillColor(...primaryRgb)
-           .text('Total:', totalsX, totalsYPos);
-        doc.fontSize(14)
-           .fillColor(...primaryRgb)
-           .text(`£${total.toFixed(2)}`, totalsX + 130, totalsYPos, { align: 'right' });
+           .fillColor(...primaryRgb);
+        doc.text('Total:', totalsX, totalsYPos);
+        const totalText = `£${total.toFixed(2)}`;
+        const totalWidth = doc.widthOfString(totalText);
+        doc.fontSize(14);
+        doc.text(totalText, totalsX + 180 - totalWidth, totalsYPos);
 
-        yPos = totalsY + 95;
+        yPos = totalsY + 85;
       }
 
       // Notes Section
       if (document.notes) {
-        yPos += 15;
+        yPos += 12;
         doc.fontSize(10)
            .font('Helvetica-Bold')
            .fillColor(0, 0, 0)
            .text('Notes:', margin, yPos);
-        yPos += 15;
+        yPos += 14;
         doc.fontSize(9)
            .font('Helvetica')
            .fillColor(0, 0, 0)
@@ -316,7 +341,7 @@ export async function generatePDF(
 
       // Footer
       if (options.includeFooter !== false) {
-        const footerY = pageHeight - margin - 20;
+        const footerY = pageHeight - margin - 15;
         doc.fontSize(8)
            .font('Helvetica')
            .fillColor(...primaryRgb)
