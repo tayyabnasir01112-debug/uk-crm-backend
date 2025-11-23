@@ -320,6 +320,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         businessEmail: business?.email,
         businessPhone: business?.phone,
         footerText: business?.footerText,
+        primaryColor: business?.primaryColor,
       };
 
       if (format === 'pdf') {
@@ -369,6 +370,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         businessEmail: business?.email,
         businessPhone: business?.phone,
         footerText: business?.footerText,
+        primaryColor: business?.primaryColor,
       };
 
       if (format === 'pdf') {
@@ -418,6 +420,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         businessEmail: business?.email,
         businessPhone: business?.phone,
         footerText: business?.footerText,
+        primaryColor: business?.primaryColor,
       };
 
       if (format === 'pdf') {
