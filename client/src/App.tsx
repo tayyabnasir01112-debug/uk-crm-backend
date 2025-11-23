@@ -68,15 +68,22 @@ function Router() {
     );
   }
 
+  // SEO pages accessible to everyone (authenticated or not)
+  const seoPages = (
+    <>
+      <Route path="/about" component={About} />
+      <Route path="/contact" component={Contact} />
+      <Route path="/faq" component={FAQ} />
+      <Route path="/privacy" component={Privacy} />
+      <Route path="/terms" component={Terms} />
+    </>
+  );
+
   if (!isAuthenticated) {
     return (
       <Switch>
         <Route path="/login" component={Login} />
-        <Route path="/about" component={About} />
-        <Route path="/contact" component={Contact} />
-        <Route path="/faq" component={FAQ} />
-        <Route path="/privacy" component={Privacy} />
-        <Route path="/terms" component={Terms} />
+        {seoPages}
         <Route path="/" component={Landing} />
         <Route component={Landing} />
       </Switch>
@@ -98,6 +105,7 @@ function Router() {
         <Route path="/employees" component={Employees} />
         <Route path="/reports" component={Reports} />
         <Route path="/settings" component={Settings} />
+        {seoPages}
         <Route component={NotFound} />
       </Switch>
     </AuthenticatedLayout>
