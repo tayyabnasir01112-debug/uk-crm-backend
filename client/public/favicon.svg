@@ -1,5 +1,16 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <!-- Blue square background matching the sidebar logo (primary color: #1e40af / hsl(217 91% 35%)) -->
   <rect width="32" height="32" fill="#1e40af" rx="4"/>
-  <text x="16" y="22" font-family="Arial, sans-serif" font-size="18" font-weight="bold" fill="white" text-anchor="middle">CRM</text>
+  
+  <!-- Grid/Dashboard icon (LayoutDashboard icon representation) -->
+  <g fill="white" stroke="white" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round">
+    <!-- Top-left square -->
+    <rect x="7" y="7" width="7" height="7" fill="none"/>
+    <!-- Top-right square -->
+    <rect x="18" y="7" width="7" height="7" fill="none"/>
+    <!-- Bottom-left square -->
+    <rect x="7" y="18" width="7" height="7" fill="none"/>
+    <!-- Bottom-right square -->
+    <rect x="18" y="18" width="7" height="7" fill="none"/>
+  </g>
 </svg>
-
