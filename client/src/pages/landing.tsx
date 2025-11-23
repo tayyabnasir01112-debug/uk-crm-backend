@@ -106,6 +106,7 @@ export default function Landing() {
             className={`w-full h-full object-cover transition-opacity duration-500 ${heroLoaded ? 'opacity-100' : 'opacity-0'}`}
             loading="eager"
             decoding="async"
+            fetchPriority="high"
             onLoad={() => setHeroLoaded(true)}
           />
         </div>
@@ -224,6 +225,7 @@ export default function Landing() {
                     className={`w-full h-auto transition-opacity duration-300 ${imagesLoaded[index] ? 'opacity-100' : 'opacity-0'}`}
                     loading="lazy"
                     decoding="async"
+                    fetchPriority="low"
                     onLoad={() => setImagesLoaded(prev => ({ ...prev, [index]: true }))}
                   />
                 </div>

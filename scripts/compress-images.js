@@ -17,12 +17,18 @@ async function compressImage(inputPath, outputPath) {
     console.log(`\n📸 Compressing: ${inputPath.split('/').pop()}`);
     console.log(`   Original size: ${(originalSize / 1024 / 1024).toFixed(2)} MB`);
     
-    // Compress PNG with high quality but optimized
+    // Compress PNG with optimized settings for web
+    // Use quality 80-85 for good balance, and optimize for web
     await sharp(inputPath)
+      .resize(1920, null, { // Resize to max 1920px width for web
+        withoutEnlargement: true,
+        fit: 'inside',
+      })
       .png({
-        quality: 85,
+        quality: 80,
         compressionLevel: 9,
         adaptiveFiltering: true,
+        palette: true, // Use palette mode for better compression
       })
       .toFile(outputPath);
     

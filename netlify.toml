@@ -48,9 +48,17 @@
   for = "/assets/*.png"
   [headers.values]
     Cache-Control = "public, max-age=31536000, immutable"
+    Accept-CH = "DPR, Viewport-Width, Width"
 
 [[headers]]
   for = "/assets/*.jpg"
   [headers.values]
     Cache-Control = "public, max-age=31536000, immutable"
+    Accept-CH = "DPR, Viewport-Width, Width"
+
+[[headers]]
+  for = "/assets/*.webp"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+    Accept-CH = "DPR, Viewport-Width, Width"
 
