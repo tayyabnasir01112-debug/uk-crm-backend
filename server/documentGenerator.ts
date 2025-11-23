@@ -87,7 +87,8 @@ export async function generatePDF(
       doc.fontSize(10).font('Helvetica').fillColor(0, 0, 0);
       doc.text(`Document Number: ${docNumber}`, margin, y);
       const dateText = `Date: ${docDate}`;
-      doc.text(dateText, pageWidth - margin - doc.widthOfString(dateText), y);
+      const dateWidth = doc.widthOfString(dateText);
+      doc.text(dateText, pageWidth - margin - dateWidth, y);
       y += 25;
 
       // Paid Stamp
@@ -119,12 +120,14 @@ export async function generatePDF(
 
       // Items Table
       if (Array.isArray(document.items) && document.items.length > 0) {
-        const tableY = y;
-        const rowH = 20;
-        const headerH = 24;
+        const tableStartY = y;
+        const rowHeight = 20;
+        const headerHeight = 24;
 
-        // Header
-        doc.rect(margin, y, contentWidth, headerH).fillColor(...primaryRgb).fill();
+        // Draw header background FIRST
+        doc.rect(margin, y, contentWidth, headerHeight).fillColor(...primaryRgb).fill();
+        
+        // Then draw header text
         doc.fontSize(10).font('Helvetica-Bold').fillColor(1, 1, 1);
         const col1 = margin + 8;
         const col2 = margin + contentWidth * 0.50;
@@ -139,17 +142,22 @@ export async function generatePDF(
         } else {
           doc.text('Unit', col3, y + 6);
         }
-        y += headerH;
+        y += headerHeight;
 
-        // Rows
-        doc.fontSize(9).font('Helvetica').fillColor(0, 0, 0);
+        // Draw rows
+        doc.fontSize(9).font('Helvetica');
         document.items.forEach((item: any, idx: number) => {
+          // Draw row background FIRST
           if (idx % 2 === 0) {
-            doc.rect(margin, y, contentWidth, rowH).fillColor(0.97, 0.97, 0.97).fill();
+            doc.rect(margin, y, contentWidth, rowHeight).fillColor(0.97, 0.97, 0.97).fill();
           }
+          
+          // Then draw text - ALWAYS reset fill color after drawing background
           doc.fillColor(0, 0, 0);
+          
           doc.text(item.name || 'N/A', col1, y + 5, { width: col2 - col1 - 10 });
           doc.text(String(item.quantity || 0), col2, y + 5);
+          
           if (type !== 'challan') {
             const price = typeof item.unitPrice === 'number' ? item.unitPrice : parseFloat(item.unitPrice || 0);
             const total = typeof item.total === 'number' ? item.total : parseFloat(item.total || 0);
@@ -162,11 +170,12 @@ export async function generatePDF(
           } else {
             doc.text(item.unit || 'pcs', col3, y + 5);
           }
-          y += rowH;
+          y += rowHeight;
         });
 
-        doc.strokeColor(0.8, 0.8, 0.8).lineWidth(0.5)
-           .rect(margin, tableY, contentWidth, y - tableY).stroke();
+        // Draw border LAST
+        doc.strokeColor(0.8, 0.8, 0.8).lineWidth(0.5);
+        doc.rect(margin, tableStartY, contentWidth, y - tableStartY).stroke();
         y += 20;
       }
 
@@ -180,8 +189,11 @@ export async function generatePDF(
 
         const totalsX = pageWidth - margin - 180;
         const totalsY = y;
+        
+        // Draw background FIRST
         doc.rect(totalsX - 10, totalsY, 180, 75).fillColor(0.98, 0.98, 0.98).fill();
 
+        // Then draw text - ALWAYS reset fill color
         let ty = totalsY + 10;
         doc.fontSize(10).font('Helvetica').fillColor(0, 0, 0);
         doc.text('Subtotal:', totalsX, ty);
@@ -190,7 +202,7 @@ export async function generatePDF(
         doc.text(st, totalsX + 160 - doc.widthOfString(st), ty);
         ty += 16;
 
-        doc.font('Helvetica');
+        doc.font('Helvetica').fillColor(0, 0, 0);
         doc.text(`Tax (${taxRate.toFixed(2)}%):`, totalsX, ty);
         const tax = `£${taxAmount.toFixed(2)}`;
         doc.font('Helvetica-Bold');
@@ -244,7 +256,6 @@ export async function generateWord(
   const primaryColor = options.primaryColor || '#1e40af';
   const primaryColorWord = hexToWord(primaryColor);
 
-  // Header
   if (options.includeHeader !== false) {
     if (options.businessName) {
       children.push(new Paragraph({
@@ -261,7 +272,6 @@ export async function generateWord(
     }
   }
 
-  // Title
   const title = type === 'quotation' ? 'QUOTATION' : type === 'invoice' ? 'INVOICE' : 'DELIVERY CHALLAN';
   children.push(new Paragraph({
     children: [new TextRun({ text: title, bold: true, size: 32 })],
@@ -269,7 +279,6 @@ export async function generateWord(
     spacing: { after: 200 },
   }));
 
-  // Document Info
   const docNumber = type === 'quotation'
     ? (document as Quotation).quotationNumber
     : type === 'invoice'
@@ -283,7 +292,6 @@ export async function generateWord(
     spacing: { after: 200 },
   }));
 
-  // Paid Stamp
   if (type === 'invoice' && (document as Invoice).status === 'paid') {
     children.push(new Paragraph({
       children: [new TextRun({ text: 'PAID', bold: true, size: 40, color: '10b981' })],
@@ -292,7 +300,6 @@ export async function generateWord(
     }));
   }
 
-  // Bill To
   children.push(new Paragraph({
     children: [new TextRun({ text: 'Bill To:', bold: true, size: 20 })],
     spacing: { after: 120 },
@@ -306,7 +313,6 @@ export async function generateWord(
   }
   children.push(new Paragraph({ text: '' }));
 
-  // Items Table
   if (Array.isArray(document.items) && document.items.length > 0) {
     const tableRows: TableRow[] = [];
     const headerCells = [
@@ -398,7 +404,6 @@ export async function generateWord(
     children.push(new Paragraph({ text: '' }));
   }
 
-  // Totals
   if (type !== 'challan') {
     const docWithTotals = document as Quotation | Invoice;
     const subtotal = typeof docWithTotals.subtotal === 'string' ? parseFloat(docWithTotals.subtotal) : docWithTotals.subtotal || 0;
@@ -426,7 +431,6 @@ export async function generateWord(
     }));
   }
 
-  // Notes
   if (document.notes) {
     children.push(new Paragraph({
       children: [new TextRun({ text: 'Notes:', bold: true, size: 20 })],
@@ -435,7 +439,6 @@ export async function generateWord(
     children.push(new Paragraph({ text: document.notes, spacing: { after: 200 } }));
   }
 
-  // Footer
   if (options.includeFooter !== false) {
     children.push(new Paragraph({
       children: [new TextRun({
