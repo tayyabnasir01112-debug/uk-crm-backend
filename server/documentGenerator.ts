@@ -9,6 +9,7 @@ interface DocumentOptions {
   businessAddress?: string;
   businessEmail?: string;
   businessPhone?: string;
+  footerText?: string;
 }
 
 export async function generatePDF(
@@ -145,7 +146,7 @@ export async function generatePDF(
         const pageWidth = doc.page.width;
         doc.fontSize(8).font('Helvetica');
         doc.text(
-          options.businessName || 'Thank you for your business!',
+          options.footerText || options.businessName || 'Thank you for your business!',
           pageWidth / 2,
           pageHeight - 50,
           { align: 'center' }
@@ -364,7 +365,7 @@ export async function generateWord(
     children.push(new Paragraph({ text: '' }));
     children.push(
       new Paragraph({
-        text: options.businessName || 'Thank you for your business!',
+        text: options.footerText || options.businessName || 'Thank you for your business!',
         alignment: AlignmentType.CENTER,
       })
     );

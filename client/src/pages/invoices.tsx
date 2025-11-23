@@ -57,6 +57,9 @@ export default function Invoices() {
   const [isEditMode, setIsEditMode] = useState(false);
   const [sourceQuotation, setSourceQuotation] = useState<Quotation | null>(null);
   const [sourceChallan, setSourceChallan] = useState<DeliveryChallan | null>(null);
+  const [includeHeader, setIncludeHeader] = useState(true);
+  const [includeFooter, setIncludeFooter] = useState(true);
+  const [downloadDialogOpen, setDownloadDialogOpen] = useState(false);
 
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
@@ -403,7 +406,7 @@ export default function Invoices() {
     setSourceChallan(challan);
   };
 
-  const handleDownload = async (invoice: Invoice, format: 'pdf' | 'word' = 'pdf', includeHeader: boolean = true, includeFooter: boolean = true) => {
+  const handleDownload = async (invoice: Invoice, format: 'pdf' | 'word' = 'pdf') => {
     try {
       const url = new URL(`/api/invoices/${invoice.id}/download`, getAPIBaseURL());
       url.searchParams.set('format', format);
@@ -428,6 +431,7 @@ export default function Invoices() {
       link.click();
       document.body.removeChild(link);
       window.URL.revokeObjectURL(downloadUrl);
+      setDownloadDialogOpen(false);
 
       toast({
         title: "Success",
@@ -442,6 +446,44 @@ export default function Invoices() {
       });
     }
   };
+
+  const markAsPaidMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const response = await apiRequest("PUT", `/api/invoices/${id}`, {
+        status: "paid",
+        paidAt: new Date().toISOString(),
+      });
+      return await response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Success",
+        description: "Invoice marked as paid",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/invoices"] });
+      if (selectedInvoice) {
+        setSelectedInvoice({ ...selectedInvoice, status: "paid" as any });
+      }
+    },
+    onError: (error: Error) => {
+      if (isUnauthorizedError(error)) {
+        toast({
+          title: "Unauthorized",
+          description: "You are logged out. Logging in again...",
+          variant: "destructive",
+        });
+        setTimeout(() => {
+          window.location.href = "/login";
+        }, 500);
+        return;
+      }
+      toast({
+        title: "Error",
+        description: "Failed to mark invoice as paid",
+        variant: "destructive",
+      });
+    },
+  });
 
   if (authLoading || isLoading) {
     return (
@@ -855,62 +897,78 @@ export default function Invoices() {
                   <p className="whitespace-pre-wrap">{selectedInvoice.notes}</p>
                 </div>
               )}
-              <div className="flex justify-end gap-2 pt-4">
-                <Button variant="outline" onClick={() => setViewDialogOpen(false)}>
-                  Close
-                </Button>
-                <Button onClick={() => handleEdit(selectedInvoice)}>
-                  <Edit className="h-4 w-4 mr-2" />
-                  Edit
-                </Button>
-                <Dialog>
-                  <DialogTrigger asChild>
-                    <Button variant="outline">
-                      <Download className="h-4 w-4 mr-2" />
-                      Download
+              <div className="space-y-4 pt-4 border-t">
+                <div className="flex items-center gap-4">
+                  <div className="flex items-center space-x-2">
+                    <input 
+                      type="checkbox" 
+                      id="invIncludeHeader" 
+                      checked={includeHeader}
+                      onChange={(e) => setIncludeHeader(e.target.checked)}
+                      className="h-4 w-4"
+                    />
+                    <label htmlFor="invIncludeHeader" className="text-sm">Include Header</label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <input 
+                      type="checkbox" 
+                      id="invIncludeFooter" 
+                      checked={includeFooter}
+                      onChange={(e) => setIncludeFooter(e.target.checked)}
+                      className="h-4 w-4"
+                    />
+                    <label htmlFor="invIncludeFooter" className="text-sm">Include Footer</label>
+                  </div>
+                </div>
+                <div className="flex justify-end gap-2">
+                  <Button variant="outline" onClick={() => setViewDialogOpen(false)}>
+                    Close
+                  </Button>
+                  {selectedInvoice.status !== 'paid' && (
+                    <Button 
+                      variant="default"
+                      onClick={() => markAsPaidMutation.mutate(selectedInvoice.id)}
+                      disabled={markAsPaidMutation.isPending}
+                    >
+                      {markAsPaidMutation.isPending ? "Marking..." : "Mark as Paid"}
                     </Button>
-                  </DialogTrigger>
-                  <DialogContent>
-                    <DialogHeader>
-                      <DialogTitle>Download Options</DialogTitle>
-                    </DialogHeader>
-                    <div className="space-y-4">
-                      <div>
-                        <FormLabel>Format</FormLabel>
-                        <div className="flex gap-2 mt-2">
-                          <Button variant="outline" onClick={() => {
-                            const headerCheckbox = document.getElementById('includeHeader') as HTMLInputElement;
-                            const footerCheckbox = document.getElementById('includeFooter') as HTMLInputElement;
-                            handleDownload(
-                              selectedInvoice,
-                              'pdf',
-                              headerCheckbox?.checked ?? true,
-                              footerCheckbox?.checked ?? true
-                            );
-                          }}>PDF</Button>
-                          <Button variant="outline" onClick={() => {
-                            const headerCheckbox = document.getElementById('includeHeader') as HTMLInputElement;
-                            const footerCheckbox = document.getElementById('includeFooter') as HTMLInputElement;
-                            handleDownload(
-                              selectedInvoice,
-                              'word',
-                              headerCheckbox?.checked ?? true,
-                              footerCheckbox?.checked ?? true
-                            );
-                          }}>Word</Button>
+                  )}
+                  <Button onClick={() => handleEdit(selectedInvoice)}>
+                    <Edit className="h-4 w-4 mr-2" />
+                    Edit
+                  </Button>
+                  <Dialog open={downloadDialogOpen} onOpenChange={setDownloadDialogOpen}>
+                    <DialogTrigger asChild>
+                      <Button variant="outline">
+                        <Download className="h-4 w-4 mr-2" />
+                        Download
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent>
+                      <DialogHeader>
+                        <DialogTitle>Download Format</DialogTitle>
+                      </DialogHeader>
+                      <div className="space-y-4">
+                        <div className="flex gap-2">
+                          <Button 
+                            variant="outline" 
+                            className="flex-1"
+                            onClick={() => handleDownload(selectedInvoice, 'pdf')}
+                          >
+                            Download PDF
+                          </Button>
+                          <Button 
+                            variant="outline" 
+                            className="flex-1"
+                            onClick={() => handleDownload(selectedInvoice, 'word')}
+                          >
+                            Download Word
+                          </Button>
                         </div>
                       </div>
-                      <div className="flex items-center space-x-2">
-                        <input type="checkbox" id="includeHeader" defaultChecked />
-                        <label htmlFor="includeHeader">Include Header</label>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <input type="checkbox" id="includeFooter" defaultChecked />
-                        <label htmlFor="includeFooter">Include Footer</label>
-                      </div>
-                    </div>
-                  </DialogContent>
-                </Dialog>
+                    </DialogContent>
+                  </Dialog>
+                </div>
               </div>
             </div>
           )}
@@ -1195,7 +1253,10 @@ export default function Invoices() {
                         <Button
                           variant="ghost"
                           size="icon"
-                          onClick={() => handleDownload(invoice)}
+                          onClick={() => {
+                            setSelectedInvoice(invoice);
+                            setDownloadDialogOpen(true);
+                          }}
                           data-testid={`button-download-${invoice.id}`}
                           title="Download"
                         >

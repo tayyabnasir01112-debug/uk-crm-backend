@@ -53,6 +53,9 @@ export default function DeliveryChallans() {
   const [selectedChallan, setSelectedChallan] = useState<DeliveryChallan | null>(null);
   const [isEditMode, setIsEditMode] = useState(false);
   const [sourceQuotation, setSourceQuotation] = useState<Quotation | null>(null);
+  const [includeHeader, setIncludeHeader] = useState(true);
+  const [includeFooter, setIncludeFooter] = useState(true);
+  const [downloadDialogOpen, setDownloadDialogOpen] = useState(false);
 
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
@@ -293,7 +296,7 @@ export default function DeliveryChallans() {
     }
   };
 
-  const handleDownload = async (challan: DeliveryChallan, format: 'pdf' | 'word' = 'pdf', includeHeader: boolean = true, includeFooter: boolean = true) => {
+  const handleDownload = async (challan: DeliveryChallan, format: 'pdf' | 'word' = 'pdf') => {
     try {
       const url = new URL(`/api/delivery-challans/${challan.id}/download`, getAPIBaseURL());
       url.searchParams.set('format', format);
@@ -318,6 +321,7 @@ export default function DeliveryChallans() {
       link.click();
       document.body.removeChild(link);
       window.URL.revokeObjectURL(downloadUrl);
+      setDownloadDialogOpen(false);
 
       toast({
         title: "Success",
@@ -609,7 +613,10 @@ export default function DeliveryChallans() {
                         <Button
                           variant="ghost"
                           size="icon"
-                          onClick={() => handleDownload(challan)}
+                          onClick={() => {
+                            setSelectedChallan(challan);
+                            setDownloadDialogOpen(true);
+                          }}
                           data-testid={`button-download-${challan.id}`}
                           title="Download"
                         >
@@ -721,26 +728,81 @@ export default function DeliveryChallans() {
                   <p className="whitespace-pre-wrap">{selectedChallan.notes}</p>
                 </div>
               )}
-              <div className="flex justify-between items-center pt-4 border-t">
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    localStorage.setItem('createInvoiceFromChallan', JSON.stringify(selectedChallan));
-                    setViewDialogOpen(false);
-                    setLocation('/invoices');
-                  }}
-                >
-                  <FileCheck className="h-4 w-4 mr-2" />
-                  Create Invoice
-                </Button>
-                <div className="flex gap-2">
-                  <Button variant="outline" onClick={() => setViewDialogOpen(false)}>
-                    Close
+              <div className="space-y-4 pt-4 border-t">
+                <div className="flex items-center gap-4">
+                  <div className="flex items-center space-x-2">
+                    <input 
+                      type="checkbox" 
+                      id="challanIncludeHeader" 
+                      checked={includeHeader}
+                      onChange={(e) => setIncludeHeader(e.target.checked)}
+                      className="h-4 w-4"
+                    />
+                    <label htmlFor="challanIncludeHeader" className="text-sm">Include Header</label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <input 
+                      type="checkbox" 
+                      id="challanIncludeFooter" 
+                      checked={includeFooter}
+                      onChange={(e) => setIncludeFooter(e.target.checked)}
+                      className="h-4 w-4"
+                    />
+                    <label htmlFor="challanIncludeFooter" className="text-sm">Include Footer</label>
+                  </div>
+                </div>
+                <div className="flex justify-between items-center">
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      localStorage.setItem('createInvoiceFromChallan', JSON.stringify(selectedChallan));
+                      setViewDialogOpen(false);
+                      setLocation('/invoices');
+                    }}
+                  >
+                    <FileCheck className="h-4 w-4 mr-2" />
+                    Create Invoice
                   </Button>
-                  <Button onClick={() => handleEdit(selectedChallan)}>
-                    <Edit className="h-4 w-4 mr-2" />
-                    Edit
-                  </Button>
+                  <div className="flex gap-2">
+                    <Button variant="outline" onClick={() => setViewDialogOpen(false)}>
+                      Close
+                    </Button>
+                    <Dialog open={downloadDialogOpen} onOpenChange={setDownloadDialogOpen}>
+                      <DialogTrigger asChild>
+                        <Button variant="outline">
+                          <Download className="h-4 w-4 mr-2" />
+                          Download
+                        </Button>
+                      </DialogTrigger>
+                      <DialogContent>
+                        <DialogHeader>
+                          <DialogTitle>Download Format</DialogTitle>
+                        </DialogHeader>
+                        <div className="space-y-4">
+                          <div className="flex gap-2">
+                            <Button 
+                              variant="outline" 
+                              className="flex-1"
+                              onClick={() => handleDownload(selectedChallan, 'pdf')}
+                            >
+                              Download PDF
+                            </Button>
+                            <Button 
+                              variant="outline" 
+                              className="flex-1"
+                              onClick={() => handleDownload(selectedChallan, 'word')}
+                            >
+                              Download Word
+                            </Button>
+                          </div>
+                        </div>
+                      </DialogContent>
+                    </Dialog>
+                    <Button onClick={() => handleEdit(selectedChallan)}>
+                      <Edit className="h-4 w-4 mr-2" />
+                      Edit
+                    </Button>
+                  </div>
                 </div>
               </div>
             </div>

@@ -57,6 +57,9 @@ export default function Quotations() {
   const [viewDialogOpen, setViewDialogOpen] = useState(false);
   const [selectedQuotation, setSelectedQuotation] = useState<Quotation | null>(null);
   const [isEditMode, setIsEditMode] = useState(false);
+  const [includeHeader, setIncludeHeader] = useState(true);
+  const [includeFooter, setIncludeFooter] = useState(true);
+  const [downloadDialogOpen, setDownloadDialogOpen] = useState(false);
 
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
@@ -254,7 +257,7 @@ export default function Quotations() {
     }
   };
 
-  const handleDownload = async (quotation: Quotation, format: 'pdf' | 'word' = 'pdf', includeHeader: boolean = true, includeFooter: boolean = true) => {
+  const handleDownload = async (quotation: Quotation, format: 'pdf' | 'word' = 'pdf') => {
     try {
       const url = new URL(`/api/quotations/${quotation.id}/download`, getAPIBaseURL());
       url.searchParams.set('format', format);
@@ -279,6 +282,7 @@ export default function Quotations() {
       link.click();
       document.body.removeChild(link);
       window.URL.revokeObjectURL(downloadUrl);
+      setDownloadDialogOpen(false);
 
       toast({
         title: "Success",
@@ -637,89 +641,96 @@ export default function Quotations() {
                   <p className="whitespace-pre-wrap">{selectedQuotation.notes}</p>
                 </div>
               )}
-              <div className="flex justify-between items-center pt-4 border-t">
-                <div className="flex gap-2">
-                  <Button
-                    variant="outline"
-                    onClick={() => {
-                      // Navigate to invoices page with quotation data
-                      localStorage.setItem('createInvoiceFromQuotation', JSON.stringify(selectedQuotation));
-                      setViewDialogOpen(false);
-                      setLocation('/invoices');
-                    }}
-                  >
-                    <FileCheck className="h-4 w-4 mr-2" />
-                    Create Invoice
-                  </Button>
-                  <Button
-                    variant="outline"
-                    onClick={() => {
-                      // Navigate to delivery challans page with quotation data
-                      localStorage.setItem('createChallanFromQuotation', JSON.stringify(selectedQuotation));
-                      setViewDialogOpen(false);
-                      setLocation('/delivery-challans');
-                    }}
-                  >
-                    <TruckIcon className="h-4 w-4 mr-2" />
-                    Create Delivery Challan
-                  </Button>
+              <div className="space-y-4 pt-4 border-t">
+                <div className="flex items-center gap-4">
+                  <div className="flex items-center space-x-2">
+                    <input 
+                      type="checkbox" 
+                      id="quoIncludeHeader" 
+                      checked={includeHeader}
+                      onChange={(e) => setIncludeHeader(e.target.checked)}
+                      className="h-4 w-4"
+                    />
+                    <label htmlFor="quoIncludeHeader" className="text-sm">Include Header</label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <input 
+                      type="checkbox" 
+                      id="quoIncludeFooter" 
+                      checked={includeFooter}
+                      onChange={(e) => setIncludeFooter(e.target.checked)}
+                      className="h-4 w-4"
+                    />
+                    <label htmlFor="quoIncludeFooter" className="text-sm">Include Footer</label>
+                  </div>
                 </div>
-                <div className="flex gap-2">
-                  <Button variant="outline" onClick={() => setViewDialogOpen(false)}>
-                    Close
-                  </Button>
-                  <Dialog>
-                    <DialogTrigger asChild>
-                      <Button variant="outline">
-                        <Download className="h-4 w-4 mr-2" />
-                        Download
-                      </Button>
-                    </DialogTrigger>
-                    <DialogContent>
-                      <DialogHeader>
-                        <DialogTitle>Download Options</DialogTitle>
-                      </DialogHeader>
-                      <div className="space-y-4">
-                        <div>
-                          <FormLabel>Format</FormLabel>
-                          <div className="flex gap-2 mt-2">
-                            <Button variant="outline" onClick={() => {
-                              const headerCheckbox = document.getElementById('quoIncludeHeader') as HTMLInputElement;
-                              const footerCheckbox = document.getElementById('quoIncludeFooter') as HTMLInputElement;
-                              handleDownload(
-                                selectedQuotation,
-                                'pdf',
-                                headerCheckbox?.checked ?? true,
-                                footerCheckbox?.checked ?? true
-                              );
-                            }}>PDF</Button>
-                            <Button variant="outline" onClick={() => {
-                              const headerCheckbox = document.getElementById('quoIncludeHeader') as HTMLInputElement;
-                              const footerCheckbox = document.getElementById('quoIncludeFooter') as HTMLInputElement;
-                              handleDownload(
-                                selectedQuotation,
-                                'word',
-                                headerCheckbox?.checked ?? true,
-                                footerCheckbox?.checked ?? true
-                              );
-                            }}>Word</Button>
+                <div className="flex justify-between items-center">
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        // Navigate to invoices page with quotation data
+                        localStorage.setItem('createInvoiceFromQuotation', JSON.stringify(selectedQuotation));
+                        setViewDialogOpen(false);
+                        setLocation('/invoices');
+                      }}
+                    >
+                      <FileCheck className="h-4 w-4 mr-2" />
+                      Create Invoice
+                    </Button>
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        // Navigate to delivery challans page with quotation data
+                        localStorage.setItem('createChallanFromQuotation', JSON.stringify(selectedQuotation));
+                        setViewDialogOpen(false);
+                        setLocation('/delivery-challans');
+                      }}
+                    >
+                      <TruckIcon className="h-4 w-4 mr-2" />
+                      Create Delivery Challan
+                    </Button>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button variant="outline" onClick={() => setViewDialogOpen(false)}>
+                      Close
+                    </Button>
+                    <Dialog open={downloadDialogOpen} onOpenChange={setDownloadDialogOpen}>
+                      <DialogTrigger asChild>
+                        <Button variant="outline">
+                          <Download className="h-4 w-4 mr-2" />
+                          Download
+                        </Button>
+                      </DialogTrigger>
+                      <DialogContent>
+                        <DialogHeader>
+                          <DialogTitle>Download Format</DialogTitle>
+                        </DialogHeader>
+                        <div className="space-y-4">
+                          <div className="flex gap-2">
+                            <Button 
+                              variant="outline" 
+                              className="flex-1"
+                              onClick={() => handleDownload(selectedQuotation, 'pdf')}
+                            >
+                              Download PDF
+                            </Button>
+                            <Button 
+                              variant="outline" 
+                              className="flex-1"
+                              onClick={() => handleDownload(selectedQuotation, 'word')}
+                            >
+                              Download Word
+                            </Button>
                           </div>
                         </div>
-                        <div className="flex items-center space-x-2">
-                          <input type="checkbox" id="quoIncludeHeader" defaultChecked />
-                          <label htmlFor="quoIncludeHeader">Include Header</label>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                          <input type="checkbox" id="quoIncludeFooter" defaultChecked />
-                          <label htmlFor="quoIncludeFooter">Include Footer</label>
-                        </div>
-                      </div>
-                    </DialogContent>
-                  </Dialog>
-                  <Button onClick={() => handleEdit(selectedQuotation)}>
-                    <Edit className="h-4 w-4 mr-2" />
-                    Edit
-                  </Button>
+                      </DialogContent>
+                    </Dialog>
+                    <Button onClick={() => handleEdit(selectedQuotation)}>
+                      <Edit className="h-4 w-4 mr-2" />
+                      Edit
+                    </Button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -780,7 +791,10 @@ export default function Quotations() {
                         <Button
                           variant="ghost"
                           size="icon"
-                          onClick={() => handleDownload(quotation)}
+                          onClick={() => {
+                            setSelectedQuotation(quotation);
+                            setDownloadDialogOpen(true);
+                          }}
                           data-testid={`button-download-${quotation.id}`}
                           title="Download"
                         >

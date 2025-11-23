@@ -265,13 +265,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const includeFooter = req.query.includeFooter !== 'false';
 
       const business = await storage.getBusiness(userId);
+      const businessAddress = business ? [
+        business.address,
+        business.city,
+        business.postcode
+      ].filter(Boolean).join(', ') : undefined;
       const options = {
         includeHeader,
         includeFooter,
-        businessName: business?.name,
-        businessAddress: business?.address,
+        businessName: business?.businessName,
+        businessAddress,
         businessEmail: business?.email,
         businessPhone: business?.phone,
+        footerText: business?.footerText,
       };
 
       if (format === 'pdf') {
@@ -308,13 +314,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const includeFooter = req.query.includeFooter !== 'false';
 
       const business = await storage.getBusiness(userId);
+      const businessAddress = business ? [
+        business.address,
+        business.city,
+        business.postcode
+      ].filter(Boolean).join(', ') : undefined;
       const options = {
         includeHeader,
         includeFooter,
-        businessName: business?.name,
-        businessAddress: business?.address,
+        businessName: business?.businessName,
+        businessAddress,
         businessEmail: business?.email,
         businessPhone: business?.phone,
+        footerText: business?.footerText,
       };
 
       if (format === 'pdf') {
@@ -351,13 +363,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const includeFooter = req.query.includeFooter !== 'false';
 
       const business = await storage.getBusiness(userId);
+      const businessAddress = business ? [
+        business.address,
+        business.city,
+        business.postcode
+      ].filter(Boolean).join(', ') : undefined;
       const options = {
         includeHeader,
         includeFooter,
-        businessName: business?.name,
-        businessAddress: business?.address,
+        businessName: business?.businessName,
+        businessAddress,
         businessEmail: business?.email,
         businessPhone: business?.phone,
+        footerText: business?.footerText,
       };
 
       if (format === 'pdf') {
