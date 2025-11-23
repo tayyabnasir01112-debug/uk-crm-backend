@@ -587,18 +587,27 @@ export async function generateWord(
     children.push(new Paragraph({ text: document.notes, spacing: { after: 200 } }));
   }
 
-  // Footer
+  // Footer - Add to document footer section (bottom of page)
+  let footer: Footer | undefined;
   if (options.includeFooter !== false) {
-    children.push(new Paragraph({
-      children: [new TextRun({
-        text: options.footerText || options.businessName || 'Thank you for your business!',
-        color: primaryColorWord,
-      })],
-      alignment: AlignmentType.CENTER,
-      spacing: { before: 400 },
-    }));
+    footer = new Footer({
+      children: [
+        new Paragraph({
+          children: [new TextRun({
+            text: options.footerText || options.businessName || 'Thank you for your business!',
+            color: primaryColorWord,
+          })],
+          alignment: AlignmentType.CENTER,
+        })
+      ]
+    });
   }
 
-  const doc = new Document({ sections: [{ children }] });
+  const doc = new Document({
+    sections: [{
+      children,
+      footer,
+    }]
+  });
   return await Packer.toBuffer(doc);
 }
