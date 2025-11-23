@@ -274,6 +274,102 @@ export async function generatePDF(
     });
   }
 
+  // Totals
+  if (type !== 'challan') {
+    const totalsContent: any[] = [
+      {
+        columns: [
+          { text: 'Subtotal:', alignment: 'right' },
+          { text: `£${subtotal.toFixed(2)}`, alignment: 'right', bold: true }
+        ],
+        margin: [0, 0, 0, 4]
+      },
+      {
+        columns: [
+          { text: `Tax (${parseDecimal((document as Quotation | Invoice).taxRate || 20).toFixed(2)}%):`, alignment: 'right' },
+          { text: `£${taxAmount.toFixed(2)}`, alignment: 'right', bold: true }
+        ],
+        margin: [0, 0, 0, 4]
+      },
+      {
+        canvas: [{
+          type: 'line',
+          x1: 0,
+          y1: 0,
+          x2: 180,
+          y2: 0,
+          lineWidth: 1,
+          lineColor: '#B3B3B3'
+        }],
+        margin: [335, 4, 0, 4]
+      },
+      {
+        columns: [
+          { text: 'Total:', alignment: 'right', fontSize: 12, bold: true, color: primaryColorHex },
+          { text: `£${total.toFixed(2)}`, alignment: 'right', fontSize: 14, bold: true, color: primaryColorHex }
+        ],
+        margin: [0, 0, 0, 25]
+      }
+    ];
+    
+    docDefinition.content.push(...totalsContent);
+  }
+
+  // Notes
+  if (document.notes) {
+    docDefinition.content.push(
+      {
+        text: 'Notes:',
+        fontSize: 10,
+        bold: true,
+        margin: [0, 0, 0, 4]
+      },
+      {
+        text: document.notes,
+        fontSize: 9,
+        margin: [0, 0, 0, 20]
+      }
+    );
+  }
+
+  // Footer
+  if (options.includeFooter !== false) {
+    docDefinition.footer = function(currentPage: number, pageCount: number) {
+      return {
+        text: options.footerText || options.businessName || 'Thank you for your business!',
+        fontSize: 8,
+        color: primaryColorHex,
+        alignment: 'center',
+        margin: [0, 15, 0, 0]
+      };
+    };
+  }
+
+  const fonts = {
+    Helvetica: {
+      normal: 'Helvetica',
+      bold: 'Helvetica-Bold',
+      italics: 'Helvetica-Oblique',
+      bolditalics: 'Helvetica-BoldOblique'
+    }
+  };
+
+  const printer = new PdfPrinter(fonts);
+  const pdfDoc = printer.createPdfKitDocument(docDefinition);
+  
+  return new Promise((resolve, reject) => {
+    const chunks: Buffer[] = [];
+    pdfDoc.on('data', (chunk: Buffer) => chunks.push(chunk));
+    pdfDoc.on('end', () => resolve(Buffer.concat(chunks)));
+    pdfDoc.on('error', reject);
+    pdfDoc.end();
+  });
+}
+
+function hexToWord(hex: string): string {
+  return hex.replace('#', '');
+}
+
 export async function generateWord(
   document: Quotation | Invoice | DeliveryChallan,
   type: 'quotation' | 'invoice' | 'challan',
