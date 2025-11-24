@@ -113,8 +113,8 @@ export function AppSidebar() {
     : null;
 
   return (
-    <Sidebar>
-      <SidebarHeader className="p-4 border-b border-sidebar-border">
+    <Sidebar className="flex flex-col h-full">
+      <SidebarHeader className="p-4 border-b border-sidebar-border shrink-0">
         <div className="flex items-center gap-2">
           <div className="w-8 h-8 rounded-md bg-primary flex items-center justify-center">
             <LayoutDashboard className="h-5 w-5 text-primary-foreground" />
@@ -126,7 +126,7 @@ export function AppSidebar() {
         </div>
       </SidebarHeader>
 
-      <SidebarContent>
+      <SidebarContent className="flex-1 overflow-y-auto min-h-0">
         <SidebarGroup>
           <SidebarGroupLabel>Modules</SidebarGroupLabel>
           <SidebarGroupContent>
@@ -190,7 +190,7 @@ export function AppSidebar() {
         )}
       </SidebarContent>
 
-      <SidebarFooter className="p-4 border-t border-sidebar-border">
+      <SidebarFooter className="p-4 border-t border-sidebar-border shrink-0">
         <Button
           variant="ghost"
           className="w-full justify-start"
