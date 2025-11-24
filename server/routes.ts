@@ -205,16 +205,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
             const challanItems = Array.isArray(sourceChallan.items) ? sourceChallan.items : [];
             
             const updatedItems = challanItems.map((challanItem: any) => {
-              const matchingQuotationItem = quotationItems.find((qItem: any) => 
-                qItem.name === challanItem.name && qItem.quantity === challanItem.quantity
+              // Try to match by name first (more flexible)
+              let matchingQuotationItem = quotationItems.find((qItem: any) => 
+                qItem.name === challanItem.name
               );
+              
+              // If no match by name, try to match by inventoryItemId if available
+              if (!matchingQuotationItem && challanItem.inventoryItemId) {
+                matchingQuotationItem = quotationItems.find((qItem: any) => 
+                  qItem.inventoryItemId === challanItem.inventoryItemId
+                );
+              }
+              
               if (matchingQuotationItem) {
+                const unitPrice = typeof matchingQuotationItem.unitPrice === 'number' 
+                  ? matchingQuotationItem.unitPrice 
+                  : parseFloat(matchingQuotationItem.unitPrice || '0');
+                const quantity = typeof challanItem.quantity === 'number' 
+                  ? challanItem.quantity 
+                  : parseFloat(challanItem.quantity || '0');
                 return {
                   ...challanItem,
-                  unitPrice: matchingQuotationItem.unitPrice || 0,
-                  total: (matchingQuotationItem.unitPrice || 0) * (challanItem.quantity || 0),
+                  unitPrice: unitPrice,
+                  total: unitPrice * quantity,
                 };
               }
+              // If no match found, keep the challan item as is (might have been manually entered)
               return challanItem;
             });
             
@@ -289,6 +305,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.put('/api/invoices/:id', isAuthenticated, async (req: any, res) => {
     try {
+      const userId = req.user.id;
       // Allow partial updates - bypass schema validation for simple updates
       const updateData: any = {};
       
@@ -300,6 +317,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Handle paidAt timestamp - convert string to Date
       if (req.body.paidAt !== undefined) {
         updateData.paidAt = req.body.paidAt ? new Date(req.body.paidAt) : null;
+      }
+      
+      // Update quotation status when invoice is marked as paid
+      if (req.body.status === 'paid' && updateData.paidAt) {
+        const invoice = await storage.getInvoice(req.params.id);
+        if (invoice && invoice.userId === userId) {
+          // Try to find source quotation
+          if (invoice.sourceQuotationId) {
+            const formattedDate = updateData.paidAt.toLocaleDateString('en-GB', { 
+              day: 'numeric', 
+              month: 'long', 
+              year: 'numeric' 
+            });
+            await storage.updateQuotation(invoice.sourceQuotationId, {
+              status: `invoice generated and paid on: ${formattedDate}`
+            });
+          }
+        }
       }
       
       // Handle other fields if present (for full updates)

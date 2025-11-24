@@ -500,7 +500,6 @@ export default function Invoices() {
     mutationFn: async (id: string) => {
       console.log("Marking invoice as paid:", id);
       try {
-        const invoice = invoices.find(inv => inv.id === id);
         const paidDate = new Date();
         const response = await apiRequest("PUT", `/api/invoices/${id}`, {
           status: "paid",
@@ -509,22 +508,8 @@ export default function Invoices() {
         const data = await response.json();
         console.log("Mark as paid response:", data);
         
-        // Update quotation status if invoice was created from a quotation
-        if (invoice && (invoice as any).sourceQuotationId) {
-          const formattedDate = paidDate.toLocaleDateString('en-GB', { 
-            day: 'numeric', 
-            month: 'long', 
-            year: 'numeric' 
-          });
-          try {
-            await apiRequest("PUT", `/api/quotations/${(invoice as any).sourceQuotationId}`, {
-              status: `invoice generated and paid on: ${formattedDate}`
-            });
-            queryClient.invalidateQueries({ queryKey: ["/api/quotations"] });
-          } catch (error) {
-            console.error("Failed to update quotation status:", error);
-          }
-        }
+        // Backend now handles quotation status update, but invalidate queries to refresh
+        queryClient.invalidateQueries({ queryKey: ["/api/quotations"] });
         
         return data;
       } catch (error) {

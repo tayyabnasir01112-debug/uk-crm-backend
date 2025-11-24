@@ -979,7 +979,28 @@ export default function Quotations() {
                   <TableRow key={quotation.id} data-testid={`row-quotation-${quotation.id}`}>
                     <TableCell className="font-medium">{quotation.quotationNumber}</TableCell>
                     <TableCell>{quotation.customerName}</TableCell>
-                    <TableCell>£{parseFloat(quotation.total.toString()).toFixed(2)}</TableCell>
+                    <TableCell>
+                      {(() => {
+                        // Recalculate total from items to ensure accuracy
+                        let calculatedSubtotal = 0;
+                        if (Array.isArray(quotation.items)) {
+                          quotation.items.forEach((item: any) => {
+                            const quantity = typeof item.quantity === 'number' ? item.quantity : parseFloat(item.quantity || 0);
+                            const unitPrice = typeof item.unitPrice === 'number' ? item.unitPrice : parseFloat(item.unitPrice || 0);
+                            let itemTotal = typeof item.total === 'number' ? item.total : parseFloat(item.total || 0);
+                            if (itemTotal === 0 && unitPrice > 0 && quantity > 0) {
+                              itemTotal = unitPrice * quantity;
+                            }
+                            calculatedSubtotal += itemTotal;
+                          });
+                        }
+                        const subtotal = calculatedSubtotal > 0 ? calculatedSubtotal : (typeof quotation.subtotal === 'string' ? parseFloat(quotation.subtotal) : quotation.subtotal || 0);
+                        const taxRate = typeof quotation.taxRate === 'string' ? parseFloat(quotation.taxRate) : quotation.taxRate || 20;
+                        const taxAmount = subtotal * (taxRate / 100);
+                        const total = subtotal + taxAmount;
+                        return `£${total.toFixed(2)}`;
+                      })()}
+                    </TableCell>
                     <TableCell>
                       <Badge variant={getStatusBadgeVariant(quotation.status!)} className="capitalize">
                         {quotation.status}
