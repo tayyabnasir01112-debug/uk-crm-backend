@@ -4,8 +4,10 @@ import session from "express-session";
 import type { Express, RequestHandler } from "express";
 import connectPg from "connect-pg-simple";
 import bcrypt from "bcrypt";
+import crypto from "crypto";
 import { storage } from "./storage";
 import type { User } from "@shared/schema";
+import { sendVerificationEmail } from "./email";
 
 const pgStore = connectPg(session);
 
@@ -58,6 +60,26 @@ export function getSession() {
   });
 }
 
+const APP_BASE_URL =
+  process.env.PUBLIC_APP_URL ||
+  process.env.APP_URL ||
+  process.env.FRONTEND_URL ||
+  "https://crmlaunch.co.uk";
+
+const VERIFICATION_TTL_MINUTES = Number(process.env.VERIFICATION_TTL_MINUTES || 60);
+
+function createVerificationPayload() {
+  const code = Math.floor(100000 + Math.random() * 900000).toString();
+  const token = crypto.randomBytes(32).toString("hex");
+  const expiresAt = new Date(Date.now() + VERIFICATION_TTL_MINUTES * 60 * 1000);
+  return { code, token, expiresAt };
+}
+
+function buildVerificationUrl(token: string) {
+  const base = APP_BASE_URL.endsWith("/") ? APP_BASE_URL.slice(0, -1) : APP_BASE_URL;
+  return `${base}/login?verify=${token}`;
+}
+
 // Configure Passport Local Strategy
 passport.use(
   new LocalStrategy(
@@ -87,10 +109,22 @@ passport.use(
           return done(null, false, { message: "Invalid email or password" });
         }
 
+        if (!user.emailVerified) {
+          return done(
+            null,
+            false,
+            {
+              message: "Please verify your email before logging in",
+              requiresVerification: true,
+              email: user.email,
+            } as any
+          );
+        }
+
         // Verify user has ID
         if (!user.id) {
           console.error("User missing ID after password verification:", user);
-          return done(new Error("User data error: missing ID"), null);
+          return done(new Error("User data error: missing ID"), undefined);
         }
 
         return done(null, user);
@@ -107,7 +141,7 @@ passport.serializeUser((user: Express.User, done) => {
   const userId = (user as User).id;
   if (!userId) {
     console.error("Serialization error: user missing ID", user);
-    return done(new Error("User missing ID"), null);
+    return done(new Error("User missing ID"), undefined);
   }
   done(null, userId);
 });
@@ -115,7 +149,7 @@ passport.serializeUser((user: Express.User, done) => {
 passport.deserializeUser(async (id: string, done) => {
   try {
     if (!id) {
-      return done(new Error("Missing user ID"), null);
+      return done(new Error("Missing user ID"), undefined);
     }
     const user = await storage.getUser(id);
     if (!user) {
@@ -152,12 +186,18 @@ export async function setupAuth(app: Express) {
       // Hash password
       const hashedPassword = await bcrypt.hash(password, 10);
 
+      const verification = createVerificationPayload();
+
       // Create user
       const user = await storage.upsertUser({
         email,
         password: hashedPassword,
         firstName: firstName || null,
         lastName: lastName || null,
+        emailVerified: false,
+        verificationCode: verification.code,
+        verificationToken: verification.token,
+        verificationExpires: verification.expiresAt,
       });
 
       // Verify user was created with an ID
@@ -166,19 +206,24 @@ export async function setupAuth(app: Express) {
         return res.status(500).json({ message: "User created but missing ID" });
       }
 
-      // Auto-login after registration
-      req.login(user, (err) => {
-        if (err) {
-          console.error("Login error after registration:", err);
-          console.error("User object:", { id: user.id, email: user.email });
-          // Still return success - user can login manually
-          return res.status(201).json({ 
-            user, 
-            message: "Registration successful. Please log in.",
-            requiresLogin: true 
-          });
-        }
-        return res.json({ user, message: "Registration successful" });
+      try {
+        await sendVerificationEmail({
+          to: email,
+          code: verification.code,
+          expiresAt: verification.expiresAt,
+          verifyUrl: buildVerificationUrl(verification.token),
+        });
+      } catch (emailError: any) {
+        console.error("Failed to send verification email:", emailError);
+        return res.status(500).json({
+          message: "Registration created but verification email could not be sent. Please try again later.",
+        });
+      }
+
+      return res.status(201).json({
+        message: "Registration successful. Please verify your email to continue.",
+        requiresVerification: true,
+        email,
       });
     } catch (error: any) {
       console.error("Registration error:", error);
@@ -199,6 +244,116 @@ export async function setupAuth(app: Express) {
     }
   });
 
+  // Verify email endpoint
+  app.post("/api/verify-email", async (req, res) => {
+    try {
+      const { email, code, token } = req.body || {};
+
+      if (!token && (!email || !code)) {
+        return res.status(400).json({ message: "Provide verification token or email and code" });
+      }
+
+      let user: User | undefined;
+
+      if (token) {
+        user = await storage.getUserByVerificationToken(token);
+      } else if (email) {
+        const users = await storage.getUsersByEmail(email);
+        user = users[0];
+      }
+
+      if (!user) {
+        return res.status(404).json({ message: "Account not found" });
+      }
+
+      const completeLoginAndRespond = () =>
+        req.login(user as User, (err) => {
+          if (err) {
+            console.error("Auto login failed after verification:", err);
+            return res.json({ message: "Email verified. Please log in." });
+          }
+          const { password: _password, ...safeUser } = user as User;
+          return res.json({ message: "Email verified successfully", user: safeUser });
+        });
+
+      if (user.emailVerified) {
+        return completeLoginAndRespond();
+      }
+
+      if (!user.verificationExpires || user.verificationExpires < new Date()) {
+        return res.status(400).json({ message: "Verification code expired", expired: true });
+      }
+
+      if (token) {
+        if (user.verificationToken !== token) {
+          return res.status(400).json({ message: "Invalid verification token" });
+        }
+      } else if (user.verificationCode !== code) {
+        return res.status(400).json({ message: "Invalid verification code" });
+      }
+
+      const updatedUser = await storage.updateUser(user.id, {
+        emailVerified: true,
+        verificationCode: null,
+        verificationToken: null,
+        verificationExpires: null,
+      });
+
+      if (!updatedUser) {
+        return res.status(500).json({ message: "Failed to update verification status" });
+      }
+
+      user = updatedUser;
+
+      return completeLoginAndRespond();
+    } catch (error) {
+      console.error("Email verification error:", error);
+      return res.status(500).json({ message: "Failed to verify email" });
+    }
+  });
+
+  // Resend verification code endpoint
+  app.post("/api/resend-verification", async (req, res) => {
+    try {
+      const { email } = req.body || {};
+
+      if (!email) {
+        return res.status(400).json({ message: "Email is required" });
+      }
+
+      const users = await storage.getUsersByEmail(email);
+      const user = users[0];
+
+      if (!user) {
+        return res.status(404).json({ message: "Account not found" });
+      }
+
+      if (user.emailVerified) {
+        return res.status(400).json({ message: "Email already verified" });
+      }
+
+      const verification = createVerificationPayload();
+
+      await storage.updateUser(user.id, {
+        verificationCode: verification.code,
+        verificationToken: verification.token,
+        verificationExpires: verification.expiresAt,
+      });
+
+      await sendVerificationEmail({
+        to: email,
+        code: verification.code,
+        expiresAt: verification.expiresAt,
+        verifyUrl: buildVerificationUrl(verification.token),
+      });
+
+      res.json({ message: "Verification email sent" });
+    } catch (error) {
+      console.error("Resend verification error:", error);
+      res.status(500).json({ message: "Failed to resend verification email" });
+    }
+  });
+
   // Login endpoint
   app.post("/api/login", (req, res, next) => {
     passport.authenticate("local", (err: any, user: User | false, info: any) => {
@@ -209,6 +364,13 @@ export async function setupAuth(app: Express) {
         return res.status(500).json({ message: err.message || "An error occurred during login" });
       }
       if (!user) {
+        if (info?.requiresVerification) {
+          return res.status(403).json({
+            message: info?.message || "Please verify your email before logging in",
+            requiresVerification: true,
+            email: info?.email,
+          });
+        }
         return res.status(401).json({ message: info?.message || "Invalid email or password" });
       }
       

@@ -1,26 +1,184 @@
-import { useState } from "react";
+﻿import { useEffect, useState } from "react";
 import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
 import { apiUrl, API_BASE_URL } from "@/lib/api";
 import { ArrowLeft, Home } from "lucide-react";
 
+type AuthMode = "login" | "signup" | "verify";
+
 export default function Login() {
   const [location, setLocation] = useLocation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  // Check for signup query parameter
   const searchParams = new URLSearchParams(window.location.search);
-  const [isLogin, setIsLogin] = useState(!searchParams.has('signup'));
+  const initialMode: AuthMode = searchParams.has("signup") ? "signup" : "login";
+  const [mode, setMode] = useState<AuthMode>(initialMode);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [loading, setLoading] = useState(false);
+  const [resendLoading, setResendLoading] = useState(false);
+  const [verificationEmail, setVerificationEmail] = useState("");
+  const [verificationCode, setVerificationCode] = useState("");
+  const [verificationMessage, setVerificationMessage] = useState<string | null>(null);
+  const [resendTimer, setResendTimer] = useState(0);
+
+  const isLogin = mode === "login";
+  const isSignup = mode === "signup";
+  const verificationTargetEmail = verificationEmail || email || "your email";
+
+  const resetVerificationState = () => {
+    setVerificationMessage(null);
+    setVerificationCode("");
+    setVerificationEmail("");
+    setResendTimer(0);
+  };
+
+  const startVerificationFlow = (targetEmail: string, message?: string) => {
+    setMode("verify");
+    setVerificationEmail(targetEmail);
+    setVerificationMessage(message || "Enter the 6-digit code we sent to your email address.");
+    setVerificationCode("");
+    setResendTimer(60);
+  };
+
+  const switchAuthMode = (nextMode: AuthMode) => {
+    setMode(nextMode);
+    if (nextMode !== "verify") {
+      resetVerificationState();
+    }
+  };
+
+  async function submitVerification(options?: { token?: string }) {
+    const usingToken = Boolean(options?.token);
+    const targetEmail = verificationEmail || email;
+
+    if (!usingToken) {
+      if (!targetEmail) {
+        toast({
+          title: "Missing email",
+          description: "Enter the email you used to sign up.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      if (verificationCode.length !== 6) {
+        toast({
+          title: "Invalid code",
+          description: "Please enter the 6-digit verification code.",
+          variant: "destructive",
+        });
+        return;
+      }
+    }
+
+    setLoading(true);
+
+    try {
+      const payload: Record<string, string> = {};
+      if (usingToken) {
+        payload.token = options!.token!;
+      } else {
+        payload.email = targetEmail;
+        payload.code = verificationCode;
+      }
+
+      const response = await fetch(apiUrl("/api/verify-email"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify(payload),
+      });
+
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.message || "Failed to verify email");
+      }
+
+      if (data.user) {
+        await queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
+        toast({ title: "Email verified", description: "You're now signed in." });
+        setLocation("/");
+      } else {
+        toast({
+          title: "Email verified",
+          description: "Please log in with your credentials.",
+        });
+        switchAuthMode("login");
+      }
+
+      setVerificationCode("");
+      setVerificationMessage(null);
+      setResendTimer(0);
+      if (data.user?.email || targetEmail) {
+        setEmail(data.user?.email || targetEmail);
+      }
+    } catch (error: any) {
+      console.error("âŒ Verification error:", error);
+      toast({
+        title: "Verification failed",
+        description: error.message || "Unable to verify email. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  const handleVerifySubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    await submitVerification();
+  };
+
+  const handleResendCode = async () => {
+    const targetEmail = verificationEmail || email;
+    if (!targetEmail) {
+      toast({
+        title: "Missing email",
+        description: "Enter the email you used to sign up before requesting a new code.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setResendLoading(true);
+    try {
+      const response = await fetch(apiUrl("/api/resend-verification"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ email: targetEmail }),
+      });
+
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.message || "Failed to resend verification code");
+      }
+
+      toast({
+        title: "Verification email sent",
+        description: `We sent a new code to ${targetEmail}.`,
+      });
+      setResendTimer(60);
+      setVerificationEmail(targetEmail);
+    } catch (error: any) {
+      toast({
+        title: "Unable to resend code",
+        description: error.message || "Please try again in a moment.",
+        variant: "destructive",
+      });
+    } finally {
+      setResendLoading(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -28,12 +186,11 @@ export default function Login() {
 
     try {
       const url = isLogin ? apiUrl("/api/login") : apiUrl("/api/register");
-      
-      // Debug logging
-      console.log("🔍 Signup Debug:");
+
+      console.log("ðŸ” Signup Debug:");
       console.log("  - Full API URL:", url);
       console.log("  - API Base URL:", API_BASE_URL);
-      
+
       const body = isLogin
         ? { email, password }
         : { email, password, firstName, lastName };
@@ -47,12 +204,10 @@ export default function Login() {
           body: JSON.stringify(body),
         });
       } catch (fetchError: any) {
-        // Fetch failed - could be network error, CORS, or invalid URL
-        console.error("❌ Fetch error:", fetchError);
-        throw new Error(`Network error: ${fetchError.message || 'Failed to connect to server'}`);
+        console.error("âŒ Fetch error:", fetchError);
+        throw new Error(`Network error: ${fetchError.message || "Failed to connect to server"}`);
       }
 
-      // Check if response is JSON
       let data;
       const contentType = response.headers.get("content-type");
       if (contentType && contentType.includes("application/json")) {
@@ -68,57 +223,56 @@ export default function Login() {
       }
 
       if (!response.ok) {
+        if (response.status === 403 && data?.requiresVerification) {
+          startVerificationFlow(data.email || email, data.message);
+          toast({
+            title: "Verify your email",
+            description: data.message || "We just sent you a fresh verification code.",
+          });
+          return;
+        }
         throw new Error(data.message || `Authentication failed: ${response.status} ${response.statusText}`);
       }
 
-      // Handle registration that requires manual login
-      if (!isLogin && data.requiresLogin) {
+      if (isSignup && data?.requiresVerification) {
+        startVerificationFlow(email, data.message);
         toast({
-          title: "Account Created",
-          description: "Registration successful! Please log in with your credentials.",
+          title: "Verify your email",
+          description: "Enter the 6-digit code we sent to your inbox.",
         });
-        // Switch to login mode
-        setIsLogin(true);
-        setEmail(email); // Keep email filled
-        setPassword(""); // Clear password
-        setLoading(false);
         return;
       }
 
-      // Invalidate and refetch user data
       await queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
-      
+
       toast({
         title: "Success",
         description: isLogin ? "Logged in successfully" : "Account created successfully",
       });
 
-      // Redirect to dashboard
       setLocation("/");
     } catch (error: any) {
-      console.error("❌ Authentication error:", error);
+      console.error("âŒ Authentication error:", error);
       console.error("Error details:", {
         message: error.message,
         stack: error.stack,
         name: error.name,
       });
-      
-      // Better error messages
+
       let errorMessage = error.message || "Authentication failed";
-      
-      // Handle specific error types
-      if (error.message?.includes("Network error") || 
-          error.message?.includes("Failed to fetch") || 
-          error.message?.includes("NetworkError") ||
-          error.message?.includes("Network request failed")) {
-        errorMessage = "Cannot connect to server. The backend might be starting up. Please try again in a few seconds.";
+
+      if (
+        error.message?.includes("Network error") ||
+        error.message?.includes("Failed to fetch") ||
+        error.message?.includes("NetworkError") ||
+        error.message?.includes("Network request failed")
+      ) {
+        errorMessage =
+          "Cannot connect to server. The backend might be starting up. Please try again in a few seconds.";
       } else if (error.message?.includes("CORS")) {
         errorMessage = "CORS error: Server is not allowing requests from this domain.";
-      } else {
-        // Show the actual error message
-        errorMessage = error.message || "Authentication failed";
       }
-      
+
       toast({
         title: "Error",
         description: errorMessage,
@@ -128,6 +282,37 @@ export default function Login() {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (resendTimer <= 0) return;
+    const interval = setInterval(() => {
+      setResendTimer((prev) => (prev > 0 ? prev - 1 : 0));
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [resendTimer]);
+
+  useEffect(() => {
+    const token = searchParams.get("verify");
+    if (!token) return;
+    setMode("verify");
+    setVerificationMessage("Verifying your email...");
+    submitVerification({ token });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const cardTitle =
+    mode === "login"
+      ? "Welcome Back"
+      : mode === "signup"
+      ? "Create Account"
+      : "Verify Your Email";
+
+  const cardDescription =
+    mode === "login"
+      ? "Sign in to your CRM account"
+      : mode === "signup"
+      ? "Sign up to get started with your CRM"
+      : verificationMessage || `Enter the code we sent to ${verificationTargetEmail}.`;
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4 relative">
@@ -145,91 +330,149 @@ export default function Login() {
       <Card className="w-full max-w-md">
         <CardHeader className="space-y-1">
           <CardTitle className="text-2xl font-bold text-center">
-            {isLogin ? "Welcome Back" : "Create Account"}
+            {cardTitle}
           </CardTitle>
           <CardDescription className="text-center">
-            {isLogin
-              ? "Sign in to your CRM account"
-              : "Sign up to get started with your CRM"}
+            {cardDescription}
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            {!isLogin && (
-              <>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="firstName">First Name</Label>
-                    <Input
-                      id="firstName"
-                      type="text"
-                      placeholder="John"
-                      value={firstName}
-                      onChange={(e) => setFirstName(e.target.value)}
-                      required={!isLogin}
-                    />
+          {mode !== "verify" ? (
+            <>
+              <form onSubmit={handleSubmit} className="space-y-4">
+                {isSignup && (
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="firstName">First Name</Label>
+                      <Input
+                        id="firstName"
+                        type="text"
+                        placeholder="John"
+                        value={firstName}
+                        onChange={(e) => setFirstName(e.target.value)}
+                        required={isSignup}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="lastName">Last Name</Label>
+                      <Input
+                        id="lastName"
+                        type="text"
+                        placeholder="Doe"
+                        value={lastName}
+                        onChange={(e) => setLastName(e.target.value)}
+                        required={isSignup}
+                      />
+                    </div>
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="lastName">Last Name</Label>
-                    <Input
-                      id="lastName"
-                      type="text"
-                      placeholder="Doe"
-                      value={lastName}
-                      onChange={(e) => setLastName(e.target.value)}
-                      required={!isLogin}
-                    />
-                  </div>
+                )}
+                <div className="space-y-2">
+                  <Label htmlFor="email">Email</Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    placeholder="you@example.com"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    required
+                  />
                 </div>
-              </>
-            )}
-            <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                type="email"
-                placeholder="you@example.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
-              <Input
-                id="password"
-                type="password"
-                placeholder="••••••••"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                minLength={6}
-              />
-            </div>
-            <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? "Please wait..." : isLogin ? "Sign In" : "Create Account"}
-            </Button>
-          </form>
-          <div className="mt-4 text-center text-sm">
-            <button
-              type="button"
-              onClick={() => {
-                setIsLogin(!isLogin);
-                setEmail("");
-                setPassword("");
-                setFirstName("");
-                setLastName("");
-              }}
-              className="text-primary hover:underline"
-            >
-              {isLogin
-                ? "Don't have an account? Sign up"
-                : "Already have an account? Sign in"}
-            </button>
-          </div>
+                <div className="space-y-2">
+                  <Label htmlFor="password">Password</Label>
+                  <Input
+                    id="password"
+                    type="password"
+                    placeholder="â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    required
+                    minLength={6}
+                  />
+                </div>
+                <Button type="submit" className="w-full" disabled={loading}>
+                  {loading ? "Please wait..." : isLogin ? "Sign In" : "Create Account"}
+                </Button>
+              </form>
+              <div className="mt-4 text-center text-sm">
+                <button
+                  type="button"
+                  onClick={() => {
+                    switchAuthMode(isLogin ? "signup" : "login");
+                    setEmail("");
+                    setPassword("");
+                    setFirstName("");
+                    setLastName("");
+                  }}
+                  className="text-primary hover:underline"
+                >
+                  {isLogin
+                    ? "Don't have an account? Sign up"
+                    : "Already have an account? Sign in"}
+                </button>
+              </div>
+            </>
+          ) : (
+            <>
+              <form onSubmit={handleVerifySubmit} className="space-y-6">
+                <p className="text-center text-sm text-muted-foreground">
+                  {verificationMessage || `Enter the code we sent to ${verificationTargetEmail}.`}
+                </p>
+                <InputOTP
+                  maxLength={6}
+                  value={verificationCode}
+                  onChange={(value) => setVerificationCode(value)}
+                >
+                  <InputOTPGroup className="justify-center">
+                    {Array.from({ length: 6 }).map((_, index) => (
+                      <InputOTPSlot key={index} index={index} />
+                    ))}
+                  </InputOTPGroup>
+                </InputOTP>
+                <Button
+                  type="submit"
+                  className="w-full"
+                  disabled={loading || verificationCode.length !== 6}
+                >
+                  {loading ? "Verifying..." : "Verify Email"}
+                </Button>
+              </form>
+              <div className="mt-4 space-y-2 text-center text-sm">
+                <p>
+                  Didn't receive the email?{" "}
+                  <button
+                    type="button"
+                    onClick={handleResendCode}
+                    className="text-primary hover:underline disabled:opacity-50"
+                    disabled={resendLoading || resendTimer > 0}
+                  >
+                    {resendTimer > 0 ? `Resend in ${resendTimer}s` : "Resend code"}
+                  </button>
+                </p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEmail(verificationEmail || email);
+                    switchAuthMode("signup");
+                  }}
+                  className="text-primary hover:underline block w-full"
+                >
+                  Change email
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEmail(verificationEmail || email);
+                    switchAuthMode("login");
+                  }}
+                  className="text-primary hover:underline block w-full"
+                >
+                  Back to login
+                </button>
+              </div>
+            </>
+          )}
         </CardContent>
       </Card>
     </div>
   );
 }
-
