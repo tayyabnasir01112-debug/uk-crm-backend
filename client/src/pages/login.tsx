@@ -387,7 +387,7 @@ export default function Login() {
                   <Input
                     id="password"
                     type="password"
-                    placeholder="â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢"
+                    placeholder={isLogin ? "Enter your password" : "Create a secure password"}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     required
@@ -430,17 +430,19 @@ export default function Login() {
                     </span>. It can take up to a minute—check spam or promotions if it’s missing.
                   </p>
                 </div>
-                <InputOTP
-                  maxLength={6}
-                  value={verificationCode}
-                  onChange={(value) => setVerificationCode(value)}
-                >
-                  <InputOTPGroup className="justify-center">
-                    {Array.from({ length: 6 }).map((_, index) => (
-                      <InputOTPSlot key={index} index={index} />
-                    ))}
-                  </InputOTPGroup>
-                </InputOTP>
+                <div className="flex justify-center">
+                  <InputOTP
+                    maxLength={6}
+                    value={verificationCode}
+                    onChange={(value) => setVerificationCode(value)}
+                  >
+                    <InputOTPGroup className="flex gap-2">
+                      {Array.from({ length: 6 }).map((_, index) => (
+                        <InputOTPSlot key={index} index={index} className="w-12 h-12 text-lg" />
+                      ))}
+                    </InputOTPGroup>
+                  </InputOTP>
+                </div>
                 <Button
                   type="submit"
                   className="w-full"
