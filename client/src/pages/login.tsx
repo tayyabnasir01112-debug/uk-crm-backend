@@ -32,7 +32,10 @@ export default function Login() {
 
   const isLogin = mode === "login";
   const isSignup = mode === "signup";
-  const verificationTargetEmail = verificationEmail || email || "your email";
+  const verificationTargetEmail = verificationEmail || email || "";
+  const maskedEmail = verificationTargetEmail
+    ? verificationTargetEmail.replace(/(^.{2}).+(@.*$)/, (_, start, domain) => `${start}***${domain}`)
+    : "your email";
 
   const resetVerificationState = () => {
     setVerificationMessage(null);
@@ -304,15 +307,15 @@ export default function Login() {
     mode === "login"
       ? "Welcome Back"
       : mode === "signup"
-      ? "Create Account"
-      : "Verify Your Email";
+        ? "Create Account"
+        : "Verify Your Email";
 
   const cardDescription =
-    mode === "login"
-      ? "Sign in to your CRM account"
-      : mode === "signup"
-      ? "Sign up to get started with your CRM"
-      : verificationMessage || `Enter the code we sent to ${verificationTargetEmail}.`;
+    mode === "verify"
+      ? undefined
+      : mode === "login"
+        ? "Sign in to your CRM Launch workspace"
+        : "Create a CRM Launch account in seconds";
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4 relative">
@@ -332,9 +335,11 @@ export default function Login() {
           <CardTitle className="text-2xl font-bold text-center">
             {cardTitle}
           </CardTitle>
-          <CardDescription className="text-center">
-            {cardDescription}
-          </CardDescription>
+          {cardDescription && (
+            <CardDescription className="text-center">
+              {cardDescription}
+            </CardDescription>
+          )}
         </CardHeader>
         <CardContent>
           {mode !== "verify" ? (
@@ -414,9 +419,17 @@ export default function Login() {
           ) : (
             <>
               <form onSubmit={handleVerifySubmit} className="space-y-6">
-                <p className="text-center text-sm text-muted-foreground">
-                  {verificationMessage || `Enter the code we sent to ${verificationTargetEmail}.`}
-                </p>
+                <div className="text-center space-y-2">
+                  <p className="text-sm text-muted-foreground">
+                    {verificationMessage || "Enter the 6-digit code we emailed you."}
+                  </p>
+                  <p className="text-sm">
+                    Sent to{" "}
+                    <span className="font-medium text-foreground">
+                      {maskedEmail}
+                    </span>. It can take up to a minute—check spam or promotions if it’s missing.
+                  </p>
+                </div>
                 <InputOTP
                   maxLength={6}
                   value={verificationCode}
@@ -437,12 +450,12 @@ export default function Login() {
                 </Button>
               </form>
               <div className="mt-4 space-y-2 text-center text-sm">
-                <p>
-                  Didn't receive the email?{" "}
+                <p className="text-muted-foreground">
+                  Didn't get an email?
                   <button
                     type="button"
                     onClick={handleResendCode}
-                    className="text-primary hover:underline disabled:opacity-50"
+                    className="text-primary hover:underline disabled:opacity-50 ml-1"
                     disabled={resendLoading || resendTimer > 0}
                   >
                     {resendTimer > 0 ? `Resend in ${resendTimer}s` : "Resend code"}
