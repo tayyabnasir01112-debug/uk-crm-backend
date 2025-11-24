@@ -302,7 +302,7 @@ export default function Invoices() {
         notes: "",
       });
     },
-    onError: (error: Error) => {
+    onError: (error: any) => {
       if (isUnauthorizedError(error)) {
         toast({
           title: "Unauthorized",
@@ -314,9 +314,11 @@ export default function Invoices() {
         }, 500);
         return;
       }
+      const errorMessage = error?.response?.data?.message || error.message || "Failed to create invoice";
+      const errorDetails = error?.response?.data?.errors;
       toast({
-        title: "Error",
-        description: error.message || "Failed to create invoice",
+        title: errorMessage,
+        description: errorDetails ? (Array.isArray(errorDetails) ? errorDetails.join("\n") : errorDetails) : errorMessage,
         variant: "destructive",
       });
     },
