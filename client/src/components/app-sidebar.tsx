@@ -113,7 +113,7 @@ export function AppSidebar() {
     : null;
 
   return (
-    <Sidebar className="flex flex-col h-full">
+    <Sidebar style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       <SidebarHeader className="p-4 border-b border-sidebar-border shrink-0">
         <div className="flex items-center gap-2">
           <div className="w-8 h-8 rounded-md bg-primary flex items-center justify-center">
@@ -126,7 +126,7 @@ export function AppSidebar() {
         </div>
       </SidebarHeader>
 
-      <SidebarContent className="flex-1 overflow-y-auto min-h-0">
+      <SidebarContent className="flex-1 overflow-y-auto min-h-0 pb-2">
         <SidebarGroup>
           <SidebarGroupLabel>Modules</SidebarGroupLabel>
           <SidebarGroupContent>
@@ -148,7 +148,7 @@ export function AppSidebar() {
         </SidebarGroup>
 
         {subscription?.status === "trial" && trialDaysRemaining !== null && (
-          <SidebarGroup>
+          <SidebarGroup className="mb-2">
             <SidebarGroupLabel>Subscription</SidebarGroupLabel>
             <SidebarGroupContent className="px-3">
               <div className="p-3 rounded-md bg-muted space-y-3">
@@ -190,7 +190,7 @@ export function AppSidebar() {
         )}
       </SidebarContent>
 
-      <SidebarFooter className="p-4 border-t border-sidebar-border shrink-0">
+      <SidebarFooter className="p-4 border-t border-sidebar-border shrink-0 mt-auto">
         <Button
           variant="ghost"
           className="w-full justify-start"
