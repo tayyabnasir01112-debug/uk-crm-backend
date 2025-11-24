@@ -113,7 +113,7 @@ export function AppSidebar() {
     : null;
 
   return (
-    <Sidebar style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+    <Sidebar>
       <SidebarHeader className="p-4 border-b border-sidebar-border shrink-0">
         <div className="flex items-center gap-2">
           <div className="w-8 h-8 rounded-md bg-primary flex items-center justify-center">
