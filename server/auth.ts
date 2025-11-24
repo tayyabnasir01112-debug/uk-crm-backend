@@ -212,6 +212,7 @@ export async function setupAuth(app: Express) {
           code: verification.code,
           expiresAt: verification.expiresAt,
           verifyUrl: buildVerificationUrl(verification.token),
+          replyTo: process.env.SMTP_REPLY_TO || process.env.SMTP_USER || email,
         });
       } catch (emailError: any) {
         console.error("Failed to send verification email:", emailError);

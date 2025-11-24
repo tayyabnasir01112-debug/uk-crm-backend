@@ -1,84 +1,70 @@
-import nodemailer from "nodemailer";
+import fetch from "node-fetch";
 
 type EmailOptions = {
   to: string;
   subject: string;
   html: string;
   text: string;
+  replyTo?: string;
 };
 
-let transporterPromise: Promise<nodemailer.Transporter | null> | null = null;
+const BREVO_API_URL = "https://api.brevo.com/v3/smtp/email";
 
-async function getTransporter(): Promise<nodemailer.Transporter | null> {
-  if (transporterPromise) {
-    return transporterPromise;
+function parseFromField(fromValue?: string) {
+  const fallbackEmail = process.env.SMTP_USER || "no-reply@crmlaunch.co.uk";
+  if (!fromValue) {
+    return { name: "CRM Launch", email: fallbackEmail };
   }
 
-  transporterPromise = (async () => {
-    const host = process.env.SMTP_HOST;
-    const user = process.env.SMTP_USER;
-    const pass = process.env.SMTP_PASS;
-    const port = process.env.SMTP_PORT ? Number(process.env.SMTP_PORT) : 587;
-    const secure = process.env.SMTP_SECURE === "true" || port === 465;
+  const match = fromValue.match(/(.*)<(.+)>/);
+  if (match && match[2]) {
+    return { name: match[1].trim() || "CRM Launch", email: match[2].trim() };
+  }
 
-    if (host && user && pass) {
-      console.log("✉️ Using configured SMTP server for transactional emails");
-      return nodemailer.createTransport({
-        host,
-        port,
-        secure,
-        auth: { user, pass },
-      });
-    }
-
-    if (process.env.NODE_ENV === "production") {
-      console.warn("⚠️ SMTP credentials not configured. Email verification emails will be logged only.");
-      return null;
-    }
-
-    const testAccount = await nodemailer.createTestAccount();
-    console.log("✉️ Using Ethereal test account for dev emails:", testAccount.user);
-    return nodemailer.createTransport({
-      host: "smtp.ethereal.email",
-      port: 587,
-      secure: false,
-      auth: {
-        user: testAccount.user,
-        pass: testAccount.pass,
-      },
-    });
-  })();
-
-  return transporterPromise;
+  return { name: fromValue.trim() || "CRM Launch", email: fallbackEmail };
 }
 
 export async function sendEmail(options: EmailOptions) {
-  const transporter = await getTransporter();
-  const from = process.env.MAIL_FROM || "CRM Launch <no-reply@crmlaunch.co.uk>";
+  const apiKey = process.env.BREVO_API_KEY || process.env.SMTP_PASS;
+  const { name, email } = parseFromField(process.env.MAIL_FROM);
 
-  if (!transporter) {
-    console.log("📨 Email transport not configured. Email content:", {
+  if (!apiKey) {
+    console.warn("⚠️ Brevo API key not configured. Email will not be sent.", {
       to: options.to,
       subject: options.subject,
-      text: options.text,
     });
     return { previewUrl: null };
   }
 
-  const info = await transporter.sendMail({
-    from,
-    to: options.to,
+  const payload: Record<string, any> = {
+    sender: { name, email },
+    to: [{ email: options.to }],
     subject: options.subject,
-    text: options.text,
-    html: options.html,
-  });
+    htmlContent: options.html,
+    textContent: options.text,
+  };
 
-  const previewUrl = nodemailer.getTestMessageUrl(info);
-  if (previewUrl) {
-    console.log("📨 Preview email at:", previewUrl);
+  const replyToEmail = options.replyTo || process.env.SMTP_REPLY_TO || email;
+  if (replyToEmail) {
+    payload.replyTo = { email: replyToEmail };
   }
 
-  return { previewUrl };
+  const response = await fetch(BREVO_API_URL, {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      "api-key": apiKey,
+    },
+    body: JSON.stringify(payload),
+  });
+
+  if (!response.ok) {
+    const errorBody = await response.text();
+    console.error("❌ Brevo email error:", response.status, errorBody);
+    throw new Error(`Brevo email API error (${response.status})`);
+  }
+
+  return { previewUrl: null };
 }
 
 export async function sendVerificationEmail({
@@ -86,11 +72,13 @@ export async function sendVerificationEmail({
   code,
   expiresAt,
   verifyUrl,
+  replyTo,
 }: {
   to: string;
   code: string;
   expiresAt: Date;
   verifyUrl: string;
+  replyTo?: string;
 }) {
   const html = `
     <div style="font-family: Arial, sans-serif; line-height: 1.6;">
@@ -123,6 +111,7 @@ If you didn't create this account, you can ignore this email.
     subject: "Verify your CRM Launch account",
     html,
     text,
+    replyTo,
   });
 }
 
