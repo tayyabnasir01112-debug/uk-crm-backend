@@ -45,11 +45,18 @@ function parseDecimal(value: any): number {
 
 function dataUrlToBuffer(dataUrl?: string): Buffer | undefined {
   if (!dataUrl) return undefined;
-  const matches = dataUrl.match(/^data:(.+);base64,(.+)$/);
-  const base64 = matches ? matches[2] : dataUrl;
   try {
-    return Buffer.from(base64, 'base64');
-  } catch {
+    // Handle data URLs
+    if (dataUrl.startsWith('data:')) {
+      const matches = dataUrl.match(/^data:(.+);base64,(.+)$/);
+      if (!matches) return undefined;
+      const base64 = matches[2];
+      return Buffer.from(base64, 'base64');
+    }
+    // Handle plain base64 strings
+    return Buffer.from(dataUrl, 'base64');
+  } catch (error) {
+    console.error('Error converting data URL to buffer:', error);
     return undefined;
   }
 }
@@ -437,8 +444,24 @@ export async function generateWord(
   const children: Paragraph[] = [];
   const primaryColor = options.primaryColor || '#1e40af';
   const primaryColorWord = hexToWord(primaryColor);
-  const paymentQrBuffer = dataUrlToBuffer(options.qrCodeUrl);
-  const signatureBuffer = dataUrlToBuffer(options.signatureUrl);
+  
+  // Convert images to buffers with validation
+  let paymentQrBuffer: Buffer | undefined;
+  let signatureBuffer: Buffer | undefined;
+  
+  if (options.qrCodeUrl) {
+    const buffer = dataUrlToBuffer(options.qrCodeUrl);
+    if (buffer && buffer.length > 0) {
+      paymentQrBuffer = buffer;
+    }
+  }
+  
+  if (options.signatureUrl) {
+    const buffer = dataUrlToBuffer(options.signatureUrl);
+    if (buffer && buffer.length > 0) {
+      signatureBuffer = buffer;
+    }
+  }
 
   function parseDecimal(value: any): number {
     if (typeof value === 'number') return value;
@@ -668,15 +691,25 @@ export async function generateWord(
       }));
     }
     if (paymentQrBuffer) {
-      children.push(new Paragraph({
-        children: [
-          new ImageRun({
-            data: paymentQrBuffer,
-            transformation: { width: 120, height: 120 },
-          }),
-        ],
-        spacing: { after: 200 },
-      }));
+      try {
+        children.push(new Paragraph({
+          children: [
+            new ImageRun({
+              data: paymentQrBuffer,
+              transformation: { width: 120, height: 120 },
+              type: 'png', // Try PNG first, docx will handle format detection
+            }),
+          ],
+          spacing: { after: 200 },
+        }));
+      } catch (error) {
+        console.error('Error adding QR code image to Word document:', error);
+        // Fallback: add text instead
+        children.push(new Paragraph({
+          children: [new TextRun({ text: '[QR Code Image]', italics: true })],
+          spacing: { after: 200 },
+        }));
+      }
     }
   }
 
@@ -686,15 +719,25 @@ export async function generateWord(
       heading: HeadingLevel.HEADING_2,
       spacing: { after: 80 },
     }));
-    children.push(new Paragraph({
-      children: [
-        new ImageRun({
-          data: signatureBuffer,
-          transformation: { width: 150, height: 80 },
-        }),
-      ],
-      spacing: { after: 200 },
-    }));
+    try {
+      children.push(new Paragraph({
+        children: [
+          new ImageRun({
+            data: signatureBuffer,
+            transformation: { width: 150, height: 80 },
+            type: 'png', // Try PNG first, docx will handle format detection
+          }),
+        ],
+        spacing: { after: 200 },
+      }));
+    } catch (error) {
+      console.error('Error adding signature image to Word document:', error);
+      // Fallback: add text instead
+      children.push(new Paragraph({
+        children: [new TextRun({ text: '[Signature Image]', italics: true })],
+        spacing: { after: 200 },
+      }));
+    }
   }
 
   // Footer - Add to document footer section (bottom of page)

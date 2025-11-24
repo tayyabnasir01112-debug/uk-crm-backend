@@ -50,10 +50,13 @@ export interface IStorage {
   deleteCustomer(id: string): Promise<void>;
   
   getInventoryItems(userId: string): Promise<InventoryItem[]>;
+  getInventoryItem(id: string): Promise<InventoryItem | undefined>;
   createInventoryItem(item: InsertInventoryItem): Promise<InventoryItem>;
+  updateInventoryItem(id: string, item: Partial<InsertInventoryItem>): Promise<InventoryItem | undefined>;
   deleteInventoryItem(id: string): Promise<void>;
   
   getQuotations(userId: string): Promise<Quotation[]>;
+  getQuotation(id: string): Promise<Quotation | undefined>;
   createQuotation(quotation: InsertQuotation): Promise<Quotation>;
   updateQuotation(id: string, quotation: Partial<InsertQuotation>): Promise<Quotation | undefined>;
   deleteQuotation(id: string): Promise<void>;
@@ -182,10 +185,24 @@ export class DatabaseStorage implements IStorage {
     return await db.select().from(inventoryItems).where(eq(inventoryItems.userId, userId)).orderBy(desc(inventoryItems.createdAt));
   }
 
+  async getInventoryItem(id: string): Promise<InventoryItem | undefined> {
+    const [item] = await db.select().from(inventoryItems).where(eq(inventoryItems.id, id));
+    return item;
+  }
+
   async createInventoryItem(itemData: InsertInventoryItem): Promise<InventoryItem> {
     const [item] = await db
       .insert(inventoryItems)
       .values(itemData)
+      .returning();
+    return item;
+  }
+
+  async updateInventoryItem(id: string, itemData: Partial<InsertInventoryItem>): Promise<InventoryItem | undefined> {
+    const [item] = await db
+      .update(inventoryItems)
+      .set({ ...itemData, updatedAt: new Date() })
+      .where(eq(inventoryItems.id, id))
       .returning();
     return item;
   }
@@ -196,6 +213,11 @@ export class DatabaseStorage implements IStorage {
 
   async getQuotations(userId: string): Promise<Quotation[]> {
     return await db.select().from(quotations).where(eq(quotations.userId, userId)).orderBy(desc(quotations.createdAt));
+  }
+
+  async getQuotation(id: string): Promise<Quotation | undefined> {
+    const [quotation] = await db.select().from(quotations).where(eq(quotations.id, id));
+    return quotation;
   }
 
   async createQuotation(quotationData: InsertQuotation): Promise<Quotation> {

@@ -24,7 +24,7 @@ import { Plus, Search, Eye, Download, Edit, Trash2, X, FileCheck, TruckIcon } fr
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { isUnauthorizedError } from "@/lib/authUtils";
 import { getAPIBaseURL } from "@/lib/api";
-import type { Quotation } from "@shared/schema";
+import type { Quotation, InventoryItem } from "@shared/schema";
 import { format } from "date-fns";
 import { useLocation } from "wouter";
 
@@ -38,6 +38,7 @@ const quotationSchema = z.object({
     quantity: z.number().min(0.01, "Quantity must be greater than 0"),
     unitPrice: z.number().min(0, "Unit price must be 0 or greater"),
     total: z.number(),
+    inventoryItemId: z.string().optional(),
   })).min(1, "At least one item is required"),
   subtotal: z.number(),
   taxRate: z.number(),
@@ -79,6 +80,10 @@ export default function Quotations() {
 
   const { data: quotations = [], isLoading } = useQuery<Quotation[]>({
     queryKey: ["/api/quotations"],
+  });
+
+  const { data: inventoryItems = [] } = useQuery<InventoryItem[]>({
+    queryKey: ["/api/inventory"],
   });
 
   const getInitialFormValues = (): QuotationFormData => ({
@@ -439,10 +444,41 @@ export default function Quotations() {
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
                     <FormLabel>Items *</FormLabel>
-                    <Button type="button" variant="outline" size="sm" onClick={addItem}>
-                      <Plus className="h-4 w-4 mr-1" />
-                      Add Item
-                    </Button>
+                    <div className="flex gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          // Add selected inventory items
+                          const selectedItems = inventoryItems.filter(item => item.quantity > 0);
+                          if (selectedItems.length > 0) {
+                            const currentItems = form.getValues("items");
+                            const newItems = selectedItems.map(item => ({
+                              name: item.name,
+                              quantity: 1,
+                              unitPrice: parseFloat(item.unitPrice.toString()),
+                              total: parseFloat(item.unitPrice.toString()),
+                              inventoryItemId: item.id,
+                            }));
+                            form.setValue("items", [...currentItems, ...newItems]);
+                          } else {
+                            toast({
+                              title: "No inventory items",
+                              description: "Please add items to inventory first",
+                              variant: "destructive",
+                            });
+                          }
+                        }}
+                      >
+                        <Plus className="h-4 w-4 mr-1" />
+                        Add from Inventory
+                      </Button>
+                      <Button type="button" variant="outline" size="sm" onClick={addItem}>
+                        <Plus className="h-4 w-4 mr-1" />
+                        Add Item
+                      </Button>
+                    </div>
                   </div>
                   {form.watch("items").map((item, index) => (
                     <div key={index} className="grid grid-cols-12 gap-2 items-end p-2 border rounded">
@@ -453,7 +489,33 @@ export default function Quotations() {
                           <FormItem className="col-span-4">
                             <FormLabel className="text-xs">Item Name</FormLabel>
                             <FormControl>
-                              <Input placeholder="Item name" {...field} />
+                              <div className="flex gap-1">
+                                <Input placeholder="Item name" {...field} className="flex-1" />
+                                {inventoryItems.length > 0 && (
+                                  <select
+                                    className="border rounded px-2 text-sm w-32"
+                                    onChange={(e) => {
+                                      const selectedId = e.target.value;
+                                      if (selectedId) {
+                                        const selectedItem = inventoryItems.find(item => item.id === selectedId);
+                                        if (selectedItem) {
+                                          field.onChange(selectedItem.name);
+                                          form.setValue(`items.${index}.unitPrice`, parseFloat(selectedItem.unitPrice.toString()));
+                                          form.setValue(`items.${index}.inventoryItemId`, selectedItem.id);
+                                        }
+                                      }
+                                    }}
+                                    value=""
+                                  >
+                                    <option value="">From inventory</option>
+                                    {inventoryItems.map(item => (
+                                      <option key={item.id} value={item.id}>
+                                        {item.name} (£{parseFloat(item.unitPrice.toString()).toFixed(2)})
+                                      </option>
+                                    ))}
+                                  </select>
+                                )}
+                              </div>
                             </FormControl>
                             <FormMessage />
                           </FormItem>

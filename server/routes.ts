@@ -117,7 +117,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ...req.body,
         userId,
       });
-      const quotation = await storage.createQuotation(validatedData);
+      
+      // Generate base document number if not provided (extract number from quotationNumber)
+      let baseDocNumber = validatedData.baseDocumentNumber;
+      if (!baseDocNumber && validatedData.quotationNumber) {
+        // Extract numeric part from QUO-123456 format
+        const match = validatedData.quotationNumber.match(/(\d+)$/);
+        baseDocNumber = match ? match[1] : validatedData.quotationNumber.replace(/^QUO-/, '');
+      }
+      
+      // Update inventory if items have inventoryItemId
+      if (Array.isArray(validatedData.items)) {
+        for (const item of validatedData.items) {
+          if (item.inventoryItemId) {
+            const inventoryItem = await storage.getInventoryItem(item.inventoryItemId);
+            if (inventoryItem && inventoryItem.userId === userId) {
+              // Quotations don't reduce inventory, only delivery challans and invoices do
+            }
+          }
+        }
+      }
+      
+      const quotation = await storage.createQuotation({
+        ...validatedData,
+        baseDocumentNumber: baseDocNumber,
+      });
       res.json(quotation);
     } catch (error) {
       console.error("Error creating quotation:", error);
@@ -163,11 +187,99 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/invoices', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.id;
-      const validatedData = insertInvoiceSchema.parse({
+      let validatedData = insertInvoiceSchema.parse({
         ...req.body,
         userId,
       });
-      const invoice = await storage.createInvoice(validatedData);
+      
+      // Handle price sync: if created from delivery challan, get prices from original quotation
+      if (validatedData.sourceChallanId && (!validatedData.items || validatedData.items.some((item: any) => !item.unitPrice || item.unitPrice === 0))) {
+        const sourceChallan = await storage.getDeliveryChallans(userId).then(challans => 
+          challans.find(c => c.id === validatedData.sourceChallanId)
+        );
+        if (sourceChallan && sourceChallan.sourceQuotationId) {
+          const sourceQuotation = await storage.getQuotation(sourceChallan.sourceQuotationId);
+          if (sourceQuotation && sourceQuotation.userId === userId) {
+            // Map items from challan to quotation items by name/quantity to get prices
+            const quotationItems = Array.isArray(sourceQuotation.items) ? sourceQuotation.items : [];
+            const challanItems = Array.isArray(sourceChallan.items) ? sourceChallan.items : [];
+            
+            const updatedItems = challanItems.map((challanItem: any) => {
+              const matchingQuotationItem = quotationItems.find((qItem: any) => 
+                qItem.name === challanItem.name && qItem.quantity === challanItem.quantity
+              );
+              if (matchingQuotationItem) {
+                return {
+                  ...challanItem,
+                  unitPrice: matchingQuotationItem.unitPrice || 0,
+                  total: (matchingQuotationItem.unitPrice || 0) * (challanItem.quantity || 0),
+                };
+              }
+              return challanItem;
+            });
+            
+            // Recalculate totals
+            const subtotal = updatedItems.reduce((sum: number, item: any) => 
+              sum + (parseFloat(item.total?.toString() || '0') || 0), 0
+            );
+            const taxRate = parseFloat(sourceQuotation.taxRate?.toString() || '20');
+            const taxAmount = subtotal * (taxRate / 100);
+            const total = subtotal + taxAmount;
+            
+            validatedData = {
+              ...validatedData,
+              items: updatedItems,
+              subtotal: subtotal.toString(),
+              taxRate: taxRate.toString(),
+              taxAmount: taxAmount.toString(),
+              total: total.toString(),
+            };
+          }
+        }
+      }
+      
+      // Generate base document number
+      let baseDocNumber = validatedData.baseDocumentNumber;
+      if (!baseDocNumber) {
+        if (validatedData.sourceQuotationId) {
+          const sourceQuotation = await storage.getQuotation(validatedData.sourceQuotationId);
+          if (sourceQuotation && sourceQuotation.userId === userId) {
+            baseDocNumber = sourceQuotation.baseDocumentNumber || 
+              (sourceQuotation.quotationNumber.match(/(\d+)$/)?.[1] || sourceQuotation.quotationNumber.replace(/^QUO-/, ''));
+          }
+        } else if (validatedData.sourceChallanId) {
+          const sourceChallan = await storage.getDeliveryChallans(userId).then(challans => 
+            challans.find(c => c.id === validatedData.sourceChallanId)
+          );
+          if (sourceChallan) {
+            baseDocNumber = sourceChallan.baseDocumentNumber || 
+              (sourceChallan.challanNumber.match(/(\d+)$/)?.[1] || sourceChallan.challanNumber.replace(/^DC-/, ''));
+          }
+        }
+      }
+      if (!baseDocNumber && validatedData.invoiceNumber) {
+        const match = validatedData.invoiceNumber.match(/(\d+)$/);
+        baseDocNumber = match ? match[1] : validatedData.invoiceNumber.replace(/^INV-/, '');
+      }
+      
+      // Update inventory - decrease stock when invoice is created (items sold)
+      if (Array.isArray(validatedData.items)) {
+        for (const item of validatedData.items) {
+          if (item.inventoryItemId) {
+            const inventoryItem = await storage.getInventoryItem(item.inventoryItemId);
+            if (inventoryItem && inventoryItem.userId === userId) {
+              const quantityToDeduct = typeof item.quantity === 'number' ? item.quantity : parseFloat(item.quantity) || 0;
+              const newQuantity = Math.max(0, inventoryItem.quantity - quantityToDeduct);
+              await storage.updateInventoryItem(item.inventoryItemId, { quantity: newQuantity });
+            }
+          }
+        }
+      }
+      
+      const invoice = await storage.createInvoice({
+        ...validatedData,
+        baseDocumentNumber: baseDocNumber,
+      });
       res.json(invoice);
     } catch (error) {
       console.error("Error creating invoice:", error);
@@ -259,7 +371,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ...req.body,
         userId,
       });
-      const challan = await storage.createDeliveryChallan(validatedData);
+      
+      // Generate base document number from source quotation if available
+      let baseDocNumber = validatedData.baseDocumentNumber;
+      if (!baseDocNumber && validatedData.sourceQuotationId) {
+        const sourceQuotation = await storage.getQuotation(validatedData.sourceQuotationId);
+        if (sourceQuotation && sourceQuotation.userId === userId) {
+          baseDocNumber = sourceQuotation.baseDocumentNumber || 
+            (sourceQuotation.quotationNumber.match(/(\d+)$/)?.[1] || sourceQuotation.quotationNumber.replace(/^QUO-/, ''));
+        }
+      }
+      if (!baseDocNumber && validatedData.challanNumber) {
+        const match = validatedData.challanNumber.match(/(\d+)$/);
+        baseDocNumber = match ? match[1] : validatedData.challanNumber.replace(/^DC-/, '');
+      }
+      
+      // Update inventory - decrease stock when items are shipped
+      if (Array.isArray(validatedData.items)) {
+        for (const item of validatedData.items) {
+          if (item.inventoryItemId) {
+            const inventoryItem = await storage.getInventoryItem(item.inventoryItemId);
+            if (inventoryItem && inventoryItem.userId === userId) {
+              const quantityToDeduct = typeof item.quantity === 'number' ? item.quantity : parseFloat(item.quantity) || 0;
+              const newQuantity = Math.max(0, inventoryItem.quantity - quantityToDeduct);
+              await storage.updateInventoryItem(item.inventoryItemId, { quantity: newQuantity });
+            }
+          }
+        }
+      }
+      
+      const challan = await storage.createDeliveryChallan({
+        ...validatedData,
+        baseDocumentNumber: baseDocNumber,
+      });
       res.json(challan);
     } catch (error) {
       console.error("Error creating delivery challan:", error);
@@ -486,6 +630,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error creating inventory item:", error);
       res.status(500).json({ message: "Failed to create inventory item" });
+    }
+  });
+
+  app.put('/api/inventory/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.id;
+      const item = await storage.getInventoryItem(req.params.id);
+      if (!item || item.userId !== userId) {
+        return res.status(404).json({ message: "Inventory item not found" });
+      }
+      const validatedData = insertInventoryItemSchema.partial().parse(req.body);
+      const updatedItem = await storage.updateInventoryItem(req.params.id, validatedData);
+      res.json(updatedItem);
+    } catch (error) {
+      console.error("Error updating inventory item:", error);
+      res.status(500).json({ message: "Failed to update inventory item" });
     }
   });
 

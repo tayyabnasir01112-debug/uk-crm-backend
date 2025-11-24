@@ -108,15 +108,27 @@ export default function DeliveryChallans() {
   // Load from quotation if provided
   useEffect(() => {
     if (sourceQuotation) {
+      // Generate challan number from quotation's base document number or quotation number
+      let challanNumber = `DC-${Date.now().toString().slice(-6)}`;
+      if (sourceQuotation.baseDocumentNumber) {
+        challanNumber = `DC-${sourceQuotation.baseDocumentNumber}`;
+      } else if (sourceQuotation.quotationNumber) {
+        const match = sourceQuotation.quotationNumber.match(/(\d+)$/);
+        if (match) {
+          challanNumber = `DC-${match[1]}`;
+        }
+      }
+      
       form.reset({
         customerName: sourceQuotation.customerName,
         customerAddress: sourceQuotation.customerAddress || "",
         deliveryAddress: sourceQuotation.customerAddress || "",
-        challanNumber: `DC-${Date.now().toString().slice(-6)}`,
+        challanNumber,
         items: Array.isArray(sourceQuotation.items) ? sourceQuotation.items.map((item: any) => ({
           name: item.name || "",
           quantity: typeof item.quantity === 'number' ? item.quantity : parseFloat(item.quantity) || 0,
-          unit: "pcs",
+          unit: item.unit || "pcs",
+          inventoryItemId: item.inventoryItemId || undefined,
         })) : [{ name: "", quantity: 1, unit: "pcs" }],
         notes: sourceQuotation.notes || "",
       });
@@ -126,7 +138,23 @@ export default function DeliveryChallans() {
 
   const createMutation = useMutation({
     mutationFn: async (data: ChallanFormData) => {
-      const response = await apiRequest("POST", "/api/delivery-challans", data);
+      // Add source quotation ID and unified document number if creating from quotation
+      const payload: any = { ...data };
+      if (sourceQuotation) {
+        payload.sourceQuotationId = sourceQuotation.id;
+        // Use unified document number
+        if (sourceQuotation.baseDocumentNumber) {
+          payload.baseDocumentNumber = sourceQuotation.baseDocumentNumber;
+          payload.challanNumber = `DC-${sourceQuotation.baseDocumentNumber}`;
+        } else if (sourceQuotation.quotationNumber) {
+          const match = sourceQuotation.quotationNumber.match(/(\d+)$/);
+          if (match) {
+            payload.baseDocumentNumber = match[1];
+            payload.challanNumber = `DC-${match[1]}`;
+          }
+        }
+      }
+      const response = await apiRequest("POST", "/api/delivery-challans", payload);
       return await response.json();
     },
     onSuccess: async (challan) => {

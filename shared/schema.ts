@@ -157,11 +157,12 @@ export const quotations = pgTable("quotations", {
   userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
   customerId: varchar("customer_id").references(() => customers.id, { onDelete: "set null" }),
   quotationNumber: varchar("quotation_number").notNull(),
+  baseDocumentNumber: varchar("base_document_number"), // Shared number across QUO/INV/DC
   customerName: text("customer_name").notNull(),
   customerEmail: varchar("customer_email"),
   customerAddress: text("customer_address"),
   status: varchar("status", { length: 20 }).default("draft"), // draft, sent, accepted, declined
-  items: jsonb("items").notNull(), // Array of {name, description, quantity, unitPrice, total}
+  items: jsonb("items").notNull(), // Array of {name, description, quantity, unitPrice, total, inventoryItemId?}
   subtotal: decimal("subtotal", { precision: 10, scale: 2 }).notNull(),
   taxRate: decimal("tax_rate", { precision: 5, scale: 2 }).default("20"), // UK VAT 20%
   taxAmount: decimal("tax_amount", { precision: 10, scale: 2 }).notNull(),
@@ -195,11 +196,14 @@ export const invoices = pgTable("invoices", {
   userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
   customerId: varchar("customer_id").references(() => customers.id, { onDelete: "set null" }),
   invoiceNumber: varchar("invoice_number").notNull(),
+  baseDocumentNumber: varchar("base_document_number"), // Shared number across QUO/INV/DC
+  sourceQuotationId: varchar("source_quotation_id").references(() => quotations.id, { onDelete: "set null" }),
+  sourceChallanId: varchar("source_challan_id").references(() => deliveryChallans.id, { onDelete: "set null" }),
   customerName: text("customer_name").notNull(),
   customerEmail: varchar("customer_email"),
   customerAddress: text("customer_address"),
   status: varchar("status", { length: 20 }).default("draft"), // draft, sent, paid, overdue
-  items: jsonb("items").notNull(), // Array of {name, description, quantity, unitPrice, total}
+  items: jsonb("items").notNull(), // Array of {name, description, quantity, unitPrice, total, inventoryItemId?}
   subtotal: decimal("subtotal", { precision: 10, scale: 2 }).notNull(),
   taxRate: decimal("tax_rate", { precision: 5, scale: 2 }).default("20"),
   taxAmount: decimal("tax_amount", { precision: 10, scale: 2 }).notNull(),
@@ -234,11 +238,13 @@ export const deliveryChallans = pgTable("delivery_challans", {
   userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
   customerId: varchar("customer_id").references(() => customers.id, { onDelete: "set null" }),
   challanNumber: varchar("challan_number").notNull(),
+  baseDocumentNumber: varchar("base_document_number"), // Shared number across QUO/INV/DC
+  sourceQuotationId: varchar("source_quotation_id").references(() => quotations.id, { onDelete: "set null" }),
   customerName: text("customer_name").notNull(),
   customerAddress: text("customer_address"),
   deliveryAddress: text("delivery_address"),
   status: varchar("status", { length: 20 }).default("draft"), // draft, dispatched, delivered
-  items: jsonb("items").notNull(), // Array of {name, description, quantity, unit}
+  items: jsonb("items").notNull(), // Array of {name, description, quantity, unit, unitPrice?, total?, inventoryItemId?}
   deliveryDate: timestamp("delivery_date"),
   notes: text("notes"),
   includeSignature: boolean("include_signature").default(true),

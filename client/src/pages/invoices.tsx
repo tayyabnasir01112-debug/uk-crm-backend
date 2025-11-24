@@ -183,18 +183,29 @@ export default function Invoices() {
 
   useEffect(() => {
     if (sourceChallan) {
+      // Generate invoice number from challan's base document number or challan number
+      let invoiceNumber = `INV-${Date.now().toString().slice(-6)}`;
+      if (sourceChallan.baseDocumentNumber) {
+        invoiceNumber = `INV-${sourceChallan.baseDocumentNumber}`;
+      } else if (sourceChallan.challanNumber) {
+        const match = sourceChallan.challanNumber.match(/(\d+)$/);
+        if (match) {
+          invoiceNumber = `INV-${match[1]}`;
+        }
+      }
+      
       form.reset({
         customerName: sourceChallan.customerName,
         customerEmail: "",
         customerAddress: sourceChallan.customerAddress || "",
-        invoiceNumber: `INV-${Date.now().toString().slice(-6)}`,
+        invoiceNumber,
         items: Array.isArray(sourceChallan.items) ? sourceChallan.items.map((item: any) => ({
           name: item.name || "",
           quantity: typeof item.quantity === 'number' ? item.quantity : parseFloat(item.quantity) || 0,
-          unitPrice: 0, // Challans don't have prices
-          total: 0,
+          unitPrice: typeof item.unitPrice === 'number' ? item.unitPrice : parseFloat(item.unitPrice) || 0, // Preserve prices if available
+          total: typeof item.total === 'number' ? item.total : parseFloat(item.total) || 0,
         })) : [{ name: "", quantity: 1, unitPrice: 0, total: 0 }],
-        subtotal: 0,
+        subtotal: 0, // Will be recalculated by backend from source quotation
         taxRate: 20,
         taxAmount: 0,
         total: 0,
@@ -206,7 +217,36 @@ export default function Invoices() {
 
   const createMutation = useMutation({
     mutationFn: async (data: InvoiceFormData) => {
-      const response = await apiRequest("POST", "/api/invoices", data);
+      // Add source IDs if creating from quotation or challan
+      const payload: any = { ...data };
+      if (sourceQuotation) {
+        payload.sourceQuotationId = sourceQuotation.id;
+        // Use unified document number
+        if (sourceQuotation.baseDocumentNumber) {
+          payload.baseDocumentNumber = sourceQuotation.baseDocumentNumber;
+          payload.invoiceNumber = `INV-${sourceQuotation.baseDocumentNumber}`;
+        } else if (sourceQuotation.quotationNumber) {
+          const match = sourceQuotation.quotationNumber.match(/(\d+)$/);
+          if (match) {
+            payload.baseDocumentNumber = match[1];
+            payload.invoiceNumber = `INV-${match[1]}`;
+          }
+        }
+      } else if (sourceChallan) {
+        payload.sourceChallanId = sourceChallan.id;
+        // Use unified document number
+        if (sourceChallan.baseDocumentNumber) {
+          payload.baseDocumentNumber = sourceChallan.baseDocumentNumber;
+          payload.invoiceNumber = `INV-${sourceChallan.baseDocumentNumber}`;
+        } else if (sourceChallan.challanNumber) {
+          const match = sourceChallan.challanNumber.match(/(\d+)$/);
+          if (match) {
+            payload.baseDocumentNumber = match[1];
+            payload.invoiceNumber = `INV-${match[1]}`;
+          }
+        }
+      }
+      const response = await apiRequest("POST", "/api/invoices", payload);
       return await response.json();
     },
     onSuccess: async (invoice) => {
