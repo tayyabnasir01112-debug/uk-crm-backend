@@ -286,27 +286,14 @@
     inset: -1px;
   }
 
-  /* Ensure sidebar footer is always visible */
+  /* Ensure sidebar layout is clean without unnecessary scrolling */
   [data-sidebar="sidebar"] {
     display: flex !important;
     flex-direction: column !important;
-    height: 100vh !important;
-    max-height: 100vh !important;
-  }
-
-  [data-sidebar="footer"] {
-    margin-top: auto !important;
-    flex-shrink: 0 !important;
-    position: sticky !important;
-    bottom: 0 !important;
-    background: hsl(var(--sidebar)) !important;
-    z-index: 10 !important;
   }
 
   [data-sidebar="content"] {
     flex: 1 1 auto !important;
-    overflow-y: auto !important;
-    min-height: 0 !important;
-    max-height: calc(100vh - 200px) !important;
+    overflow: visible !important;
   }
 }
