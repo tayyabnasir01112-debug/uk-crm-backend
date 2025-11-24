@@ -184,22 +184,25 @@ export function AppSidebar() {
                   <img src="https://cdn.simpleicons.org/stripe/635BFF" alt="Stripe" className="h-4 opacity-70" />
                   <img src="https://cdn.simpleicons.org/paypal/00457C" alt="PayPal" className="h-4 opacity-70" />
                 </div>
-                <div className="pt-2 border-t border-border">
-                  <Button
-                    variant="ghost"
-                    className="w-full justify-start text-xs"
-                    onClick={handleLogout}
-                    disabled={isLoggingOut}
-                    data-testid="button-logout"
-                  >
-                    <LogOut className="h-4 w-4 mr-2" />
-                    {isLoggingOut ? "Logging out..." : "Log Out"}
-                  </Button>
-                </div>
               </div>
             </SidebarGroupContent>
           </SidebarGroup>
         )}
+
+        <SidebarGroup>
+          <SidebarGroupContent className="px-3">
+            <Button
+              variant="ghost"
+              className="w-full justify-start"
+              onClick={handleLogout}
+              disabled={isLoggingOut}
+              data-testid="button-logout"
+            >
+              <LogOut className="h-4 w-4 mr-2" />
+              {isLoggingOut ? "Logging out..." : "Log Out"}
+            </Button>
+          </SidebarGroupContent>
+        </SidebarGroup>
       </SidebarContent>
     </Sidebar>
   );
