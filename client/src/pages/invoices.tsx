@@ -286,6 +286,7 @@ export default function Invoices() {
       }
 
       queryClient.invalidateQueries({ queryKey: ["/api/invoices"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/inventory"] }); // Refresh inventory after stock deduction
       setDialogOpen(false);
       setSourceQuotation(null);
       setSourceChallan(null);
