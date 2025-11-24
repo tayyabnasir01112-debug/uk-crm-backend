@@ -5,6 +5,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
+import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
 import { useQuery } from "@tanstack/react-query";
 import type { Business } from "@shared/schema";
@@ -40,6 +41,24 @@ function AuthenticatedLayout({ children }: { children: React.ReactNode }) {
         <div className="flex flex-col flex-1 overflow-hidden">
           <header className="flex items-center justify-between p-2 border-b border-border shrink-0">
             <SidebarTrigger data-testid="button-sidebar-toggle" />
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={async () => {
+                try {
+                  await fetch("https://uk-crm-backend.onrender.com/api/logout", {
+                    method: "POST",
+                    credentials: "include",
+                  });
+                  window.location.replace("/");
+                } catch {
+                  window.location.replace("/login");
+                }
+              }}
+              className="text-xs"
+            >
+              Log Out
+            </Button>
           </header>
           <main className="flex-1 overflow-auto">
             {children}
