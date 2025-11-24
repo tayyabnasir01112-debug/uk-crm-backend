@@ -286,14 +286,16 @@
     inset: -1px;
   }
 
-  /* Ensure sidebar layout is clean without unnecessary scrolling */
+  /* Ensure sidebar layout is clean with proper scrolling */
   [data-sidebar="sidebar"] {
     display: flex !important;
     flex-direction: column !important;
+    height: 100vh !important;
   }
 
   [data-sidebar="content"] {
     flex: 1 1 auto !important;
-    overflow: visible !important;
+    overflow-y: auto !important;
+    min-height: 0 !important;
   }
 }

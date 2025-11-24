@@ -126,7 +126,7 @@ export function AppSidebar() {
         </div>
       </SidebarHeader>
 
-      <SidebarContent className="overflow-y-auto">
+      <SidebarContent className="flex-1 overflow-y-auto min-h-0" style={{ maxHeight: 'calc(100vh - 120px)' }}>
         <SidebarGroup>
           <SidebarGroupLabel>Modules</SidebarGroupLabel>
           <SidebarGroupContent>
