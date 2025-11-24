@@ -1,17 +1,22 @@
 // import PDFDocument from 'pdfkit'; // Replaced with pdfmake
 import PdfPrinter from 'pdfmake';
-import { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell, WidthType, AlignmentType, BorderStyle, Footer, Section } from 'docx';
+import { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell, WidthType, AlignmentType, BorderStyle, Footer, Section, ImageRun, HeadingLevel } from 'docx';
 import type { Quotation, Invoice, DeliveryChallan } from '@shared/schema';
 
 interface DocumentOptions {
   includeHeader?: boolean;
   includeFooter?: boolean;
+  includePayment?: boolean;
+  includeSignature?: boolean;
   businessName?: string;
   businessAddress?: string;
   businessEmail?: string;
   businessPhone?: string;
   footerText?: string;
   primaryColor?: string;
+  paymentLink?: string;
+  qrCodeUrl?: string;
+  signatureUrl?: string;
 }
 
 function hexToRgb(hex: string): string {
@@ -36,6 +41,17 @@ function parseDecimal(value: any): number {
     return isNaN(parsed) ? 0 : parsed;
   }
   return 0;
+}
+
+function dataUrlToBuffer(dataUrl?: string): Buffer | undefined {
+  if (!dataUrl) return undefined;
+  const matches = dataUrl.match(/^data:(.+);base64,(.+)$/);
+  const base64 = matches ? matches[2] : dataUrl;
+  try {
+    return Buffer.from(base64, 'base64');
+  } catch {
+    return undefined;
+  }
 }
 
 export async function generatePDF(
@@ -332,6 +348,53 @@ export async function generatePDF(
     );
   }
 
+  if (options.includePayment && (options.paymentLink || options.qrCodeUrl)) {
+    docDefinition.content.push(
+      {
+        text: 'Payment Details',
+        fontSize: 12,
+        bold: true,
+        color: primaryColorHex,
+        margin: [0, 0, 0, 6]
+      }
+    );
+
+    if (options.paymentLink) {
+      docDefinition.content.push({
+        text: options.paymentLink,
+        link: options.paymentLink,
+        color: primaryColorHex,
+        margin: [0, 0, 0, 8]
+      });
+    }
+
+    if (options.qrCodeUrl) {
+      docDefinition.content.push({
+        image: options.qrCodeUrl,
+        width: 120,
+        alignment: 'left',
+        margin: [0, 0, 0, 16]
+      });
+    }
+  }
+
+  if (options.includeSignature && options.signatureUrl) {
+    docDefinition.content.push(
+      {
+        text: 'Authorised Signature',
+        fontSize: 10,
+        bold: true,
+        margin: [0, 0, 0, 6]
+      },
+      {
+        image: options.signatureUrl,
+        width: 150,
+        alignment: 'left',
+        margin: [0, 0, 0, 20]
+      }
+    );
+  }
+
   // Footer
   if (options.includeFooter !== false) {
     docDefinition.footer = function(currentPage: number, pageCount: number) {
@@ -374,6 +437,8 @@ export async function generateWord(
   const children: Paragraph[] = [];
   const primaryColor = options.primaryColor || '#1e40af';
   const primaryColorWord = hexToWord(primaryColor);
+  const paymentQrBuffer = dataUrlToBuffer(options.qrCodeUrl);
+  const signatureBuffer = dataUrlToBuffer(options.signatureUrl);
 
   function parseDecimal(value: any): number {
     if (typeof value === 'number') return value;
@@ -585,6 +650,51 @@ export async function generateWord(
       spacing: { after: 120 },
     }));
     children.push(new Paragraph({ text: document.notes, spacing: { after: 200 } }));
+  }
+
+  if (options.includePayment && (options.paymentLink || paymentQrBuffer)) {
+    children.push(new Paragraph({
+      text: 'Payment Details',
+      heading: HeadingLevel.HEADING_2,
+      spacing: { after: 100 },
+    }));
+    if (options.paymentLink) {
+      children.push(new Paragraph({
+        children: [
+          new TextRun({ text: 'Pay online: ', bold: true }),
+          new TextRun({ text: options.paymentLink, style: 'Hyperlink' }),
+        ],
+        spacing: { after: 120 },
+      }));
+    }
+    if (paymentQrBuffer) {
+      children.push(new Paragraph({
+        children: [
+          new ImageRun({
+            data: paymentQrBuffer,
+            transformation: { width: 120, height: 120 },
+          }),
+        ],
+        spacing: { after: 200 },
+      }));
+    }
+  }
+
+  if (options.includeSignature && signatureBuffer) {
+    children.push(new Paragraph({
+      text: 'Authorised Signature',
+      heading: HeadingLevel.HEADING_2,
+      spacing: { after: 80 },
+    }));
+    children.push(new Paragraph({
+      children: [
+        new ImageRun({
+          data: signatureBuffer,
+          transformation: { width: 150, height: 80 },
+        }),
+      ],
+      spacing: { after: 200 },
+    }));
   }
 
   // Footer - Add to document footer section (bottom of page)

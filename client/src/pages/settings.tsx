@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, ChangeEvent } from "react";
 import { useLocation } from "wouter";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
@@ -13,7 +13,8 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Building2, CreditCard, User, Save } from "lucide-react";
+import { Building2, CreditCard, User, Save, Upload, Trash2, PenSquare } from "lucide-react";
+import SignatureCanvas from "react-signature-canvas";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { isUnauthorizedError } from "@/lib/authUtils";
 import type { Business, Subscription, User as UserType } from "@shared/schema";
@@ -31,6 +32,8 @@ const businessSchema = z.object({
   footerText: z.string().optional(),
   paymentLink: z.string().url().optional().or(z.literal("")),
   primaryColor: z.string(),
+  qrCodeUrl: z.string().optional(),
+  signatureUrl: z.string().optional(),
 });
 
 type BusinessFormData = z.infer<typeof businessSchema>;
@@ -80,6 +83,8 @@ export default function Settings() {
       footerText: business?.footerText || "",
       paymentLink: business?.paymentLink || "",
       primaryColor: business?.primaryColor || "#1e40af",
+      qrCodeUrl: business?.qrCodeUrl || "",
+      signatureUrl: business?.signatureUrl || "",
     },
   });
 
@@ -98,6 +103,8 @@ export default function Settings() {
         footerText: business.footerText || "",
         paymentLink: business.paymentLink || "",
         primaryColor: business.primaryColor || "#1e40af",
+      qrCodeUrl: business.qrCodeUrl || "",
+      signatureUrl: business.signatureUrl || "",
       });
     }
   }, [business, form]);
@@ -135,6 +142,37 @@ export default function Settings() {
 
   const onSubmit = (data: BusinessFormData) => {
     updateMutation.mutate(data);
+  };
+
+  const signaturePadRef = useRef<SignatureCanvas | null>(null);
+
+  const handleImageUpload = (event: ChangeEvent<HTMLInputElement>, onChange: (value: string) => void) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      onChange(reader.result as string);
+    };
+    reader.readAsDataURL(file);
+    // reset input value so same file can be reselected
+    event.target.value = "";
+  };
+
+  const handleSignatureSave = (onChange: (value: string) => void) => {
+    if (!signaturePadRef.current || signaturePadRef.current.isEmpty()) {
+      toast({
+        title: "Draw your signature first",
+        description: "Use the pad below to sketch your signature, then tap Save.",
+        variant: "destructive",
+      });
+      return;
+    }
+    const dataUrl = signaturePadRef.current.getTrimmedCanvas().toDataURL("image/png");
+    onChange(dataUrl);
+  };
+
+  const clearSignaturePad = () => {
+    signaturePadRef.current?.clear();
   };
 
   const trialDaysRemaining = subscription?.trialEndsAt
@@ -355,6 +393,101 @@ export default function Settings() {
                         <Input type="url" {...field} data-testid="input-payment-link" />
                       </FormControl>
                       <FormDescription>Payment URL or QR code link for invoices</FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="qrCodeUrl"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Bank QR Code</FormLabel>
+                      <FormDescription>Upload your bank account QR so clients can scan and pay.</FormDescription>
+                      <FormControl>
+                        <div className="space-y-3">
+                          {field.value ? (
+                            <div className="flex items-center gap-4">
+                              <img
+                                src={field.value}
+                                alt="Payment QR"
+                                className="h-32 w-32 border rounded bg-white object-contain"
+                              />
+                              <Button type="button" variant="ghost" onClick={() => field.onChange("")}>
+                                <Trash2 className="h-4 w-4 mr-2" />
+                                Remove
+                              </Button>
+                            </div>
+                          ) : (
+                            <p className="text-sm text-muted-foreground">No QR code uploaded yet.</p>
+                          )}
+                          <div>
+                            <Input
+                              type="file"
+                              accept="image/*"
+                              onChange={(event) => handleImageUpload(event, field.onChange)}
+                            />
+                          </div>
+                        </div>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="signatureUrl"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Digital Signature</FormLabel>
+                      <FormDescription>Upload an image or draw your signature for documents.</FormDescription>
+                      <FormControl>
+                        <div className="space-y-4">
+                          {field.value ? (
+                            <div className="flex items-center gap-4">
+                              <img
+                                src={field.value}
+                                alt="Signature"
+                                className="h-24 border rounded bg-white object-contain"
+                              />
+                              <Button type="button" variant="ghost" onClick={() => field.onChange("")}>
+                                <Trash2 className="h-4 w-4 mr-2" />
+                                Remove
+                              </Button>
+                            </div>
+                          ) : (
+                            <p className="text-sm text-muted-foreground">No signature saved yet.</p>
+                          )}
+                          <div className="space-y-2">
+                            <label className="text-sm font-medium">Upload Signature</label>
+                            <Input
+                              type="file"
+                              accept="image/*"
+                              onChange={(event) => handleImageUpload(event, field.onChange)}
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <div className="flex items-center justify-between">
+                              <label className="text-sm font-medium">Draw Signature</label>
+                              <div className="flex gap-2">
+                                <Button type="button" variant="outline" size="sm" onClick={clearSignaturePad}>
+                                  Clear
+                                </Button>
+                                <Button type="button" size="sm" onClick={() => handleSignatureSave(field.onChange)}>
+                                  <PenSquare className="h-4 w-4 mr-2" />
+                                  Save Drawing
+                                </Button>
+                              </div>
+                            </div>
+                            <SignatureCanvas
+                              ref={signaturePadRef}
+                              penColor="#111827"
+                              backgroundColor="#ffffff"
+                              canvasProps={{ className: "border rounded bg-white w-full h-40" }}
+                            />
+                          </div>
+                        </div>
+                      </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}

@@ -55,6 +55,7 @@ export default function DeliveryChallans() {
   const [sourceQuotation, setSourceQuotation] = useState<Quotation | null>(null);
   const [includeHeader, setIncludeHeader] = useState(true);
   const [includeFooter, setIncludeFooter] = useState(true);
+  const [includeSignature, setIncludeSignature] = useState(false);
   const [downloadDialogOpen, setDownloadDialogOpen] = useState(false);
 
   useEffect(() => {
@@ -302,6 +303,7 @@ export default function DeliveryChallans() {
       url.searchParams.set('format', format);
       url.searchParams.set('includeHeader', includeHeader.toString());
       url.searchParams.set('includeFooter', includeFooter.toString());
+      url.searchParams.set('includeSignature', includeSignature.toString());
 
       const response = await fetch(url.toString(), {
         method: 'GET',
@@ -729,7 +731,7 @@ export default function DeliveryChallans() {
                 </div>
               )}
               <div className="space-y-4 pt-4 border-t">
-                <div className="flex items-center gap-4">
+                <div className="flex items-center gap-4 flex-wrap">
                   <div className="flex items-center space-x-2">
                     <input 
                       type="checkbox" 
@@ -749,6 +751,16 @@ export default function DeliveryChallans() {
                       className="h-4 w-4"
                     />
                     <label htmlFor="challanIncludeFooter" className="text-sm">Include Footer</label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <input 
+                      type="checkbox" 
+                      id="challanIncludeSignature" 
+                      checked={includeSignature}
+                      onChange={(e) => setIncludeSignature(e.target.checked)}
+                      className="h-4 w-4"
+                    />
+                    <label htmlFor="challanIncludeSignature" className="text-sm">Include Signature</label>
                   </div>
                 </div>
                 <div className="flex justify-between items-center">

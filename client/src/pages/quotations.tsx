@@ -57,8 +57,11 @@ export default function Quotations() {
   const [viewDialogOpen, setViewDialogOpen] = useState(false);
   const [selectedQuotation, setSelectedQuotation] = useState<Quotation | null>(null);
   const [isEditMode, setIsEditMode] = useState(false);
+  const [editingQuotationId, setEditingQuotationId] = useState<string | null>(null);
   const [includeHeader, setIncludeHeader] = useState(true);
   const [includeFooter, setIncludeFooter] = useState(true);
+  const [includePayment, setIncludePayment] = useState(false);
+  const [includeSignature, setIncludeSignature] = useState(false);
   const [downloadDialogOpen, setDownloadDialogOpen] = useState(false);
 
   useEffect(() => {
@@ -78,20 +81,22 @@ export default function Quotations() {
     queryKey: ["/api/quotations"],
   });
 
+  const getInitialFormValues = (): QuotationFormData => ({
+    customerName: "",
+    customerEmail: "",
+    customerAddress: "",
+    quotationNumber: `QUO-${Date.now().toString().slice(-6)}`,
+    items: [{ name: "", quantity: 1, unitPrice: 0, total: 0 }],
+    subtotal: 0,
+    taxRate: 20,
+    taxAmount: 0,
+    total: 0,
+    notes: "",
+  });
+
   const form = useForm<QuotationFormData>({
     resolver: zodResolver(quotationSchema),
-    defaultValues: {
-      customerName: "",
-      customerEmail: "",
-      customerAddress: "",
-      quotationNumber: `QUO-${Date.now().toString().slice(-6)}`,
-      items: [{ name: "", quantity: 1, unitPrice: 0, total: 0 }],
-      subtotal: 0,
-      taxRate: 20,
-      taxAmount: 0,
-      total: 0,
-      notes: "",
-    },
+    defaultValues: getInitialFormValues(),
   });
 
   // Watch items and taxRate to auto-calculate totals
@@ -133,18 +138,9 @@ export default function Quotations() {
       });
       queryClient.invalidateQueries({ queryKey: ["/api/quotations"] });
       setDialogOpen(false);
-      form.reset({
-        customerName: "",
-        customerEmail: "",
-        customerAddress: "",
-        quotationNumber: `QUO-${Date.now().toString().slice(-6)}`,
-        items: [{ name: "", quantity: 1, unitPrice: 0, total: 0 }],
-        subtotal: 0,
-        taxRate: 20,
-        taxAmount: 0,
-        total: 0,
-        notes: "",
-      });
+      form.reset(getInitialFormValues());
+      setIsEditMode(false);
+      setEditingQuotationId(null);
     },
     onError: (error: Error) => {
       if (isUnauthorizedError(error)) {
@@ -161,6 +157,42 @@ export default function Quotations() {
       toast({
         title: "Error",
         description: error.message || "Failed to create quotation",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const updateQuotationMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: QuotationFormData }) => {
+      const response = await apiRequest("PUT", `/api/quotations/${id}`, data);
+      return await response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Success",
+        description: "Quotation updated successfully",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/quotations"] });
+      setDialogOpen(false);
+      setIsEditMode(false);
+      setEditingQuotationId(null);
+      form.reset(getInitialFormValues());
+    },
+    onError: (error: Error) => {
+      if (isUnauthorizedError(error)) {
+        toast({
+          title: "Unauthorized",
+          description: "You are logged out. Logging in again...",
+          variant: "destructive",
+        });
+        setTimeout(() => {
+          window.location.href = "/login";
+        }, 500);
+        return;
+      }
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update quotation",
         variant: "destructive",
       });
     },
@@ -212,7 +244,11 @@ export default function Quotations() {
   };
 
   const onSubmit = (data: QuotationFormData) => {
-    createMutation.mutate(data);
+    if (isEditMode && editingQuotationId) {
+      updateQuotationMutation.mutate({ id: editingQuotationId, data });
+    } else {
+      createMutation.mutate(data);
+    }
   };
 
   const handleView = (quotation: Quotation) => {
@@ -223,9 +259,10 @@ export default function Quotations() {
 
   const handleEdit = (quotation: Quotation) => {
     setSelectedQuotation(quotation);
-    setViewDialogOpen(true);
+    setViewDialogOpen(false);
     setIsEditMode(true);
-    // Populate form with quotation data
+    setEditingQuotationId(quotation.id!);
+    setDialogOpen(true);
     form.reset({
       customerName: quotation.customerName,
       customerEmail: quotation.customerEmail || "",
@@ -263,6 +300,8 @@ export default function Quotations() {
       url.searchParams.set('format', format);
       url.searchParams.set('includeHeader', includeHeader.toString());
       url.searchParams.set('includeFooter', includeFooter.toString());
+      url.searchParams.set('includePayment', includePayment.toString());
+      url.searchParams.set('includeSignature', includeSignature.toString());
 
       const response = await fetch(url.toString(), {
         method: 'GET',
@@ -316,7 +355,17 @@ export default function Quotations() {
           <h1 className="text-3xl font-bold mb-2">Quotations</h1>
           <p className="text-muted-foreground">Create and manage your business quotations</p>
         </div>
-        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <Dialog
+          open={dialogOpen}
+          onOpenChange={(open) => {
+            setDialogOpen(open);
+            if (!open) {
+              setIsEditMode(false);
+              setEditingQuotationId(null);
+              form.reset(getInitialFormValues());
+            }
+          }}
+        >
           <DialogTrigger asChild>
             <Button data-testid="button-create-quotation">
               <Plus className="h-4 w-4 mr-2" />
@@ -325,7 +374,7 @@ export default function Quotations() {
           </DialogTrigger>
           <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle>Create New Quotation</DialogTitle>
+              <DialogTitle>{isEditMode ? "Edit Quotation" : "Create New Quotation"}</DialogTitle>
             </DialogHeader>
             <Form {...form}>
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
@@ -546,8 +595,18 @@ export default function Quotations() {
                   <Button type="button" variant="outline" onClick={() => setDialogOpen(false)} data-testid="button-cancel">
                     Cancel
                   </Button>
-                  <Button type="submit" disabled={createMutation.isPending} data-testid="button-submit">
-                    {createMutation.isPending ? "Creating..." : "Create Quotation"}
+                  <Button
+                    type="submit"
+                    disabled={isEditMode ? updateQuotationMutation.isPending : createMutation.isPending}
+                    data-testid="button-submit"
+                  >
+                    {isEditMode
+                      ? updateQuotationMutation.isPending
+                        ? "Saving..."
+                        : "Save Changes"
+                      : createMutation.isPending
+                        ? "Creating..."
+                        : "Create Quotation"}
                   </Button>
                 </div>
               </form>
@@ -671,6 +730,26 @@ export default function Quotations() {
                       className="h-4 w-4"
                     />
                     <label htmlFor="quoIncludeFooter" className="text-sm">Include Footer</label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <input 
+                      type="checkbox" 
+                      id="quoIncludePayment" 
+                      checked={includePayment}
+                      onChange={(e) => setIncludePayment(e.target.checked)}
+                      className="h-4 w-4"
+                    />
+                    <label htmlFor="quoIncludePayment" className="text-sm">Include Payment Section</label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <input 
+                      type="checkbox" 
+                      id="quoIncludeSignature" 
+                      checked={includeSignature}
+                      onChange={(e) => setIncludeSignature(e.target.checked)}
+                      className="h-4 w-4"
+                    />
+                    <label htmlFor="quoIncludeSignature" className="text-sm">Include Signature</label>
                   </div>
                 </div>
                 <div className="flex justify-between items-center">

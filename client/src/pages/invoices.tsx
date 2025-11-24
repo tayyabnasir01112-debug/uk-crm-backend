@@ -59,6 +59,8 @@ export default function Invoices() {
   const [sourceChallan, setSourceChallan] = useState<DeliveryChallan | null>(null);
   const [includeHeader, setIncludeHeader] = useState(true);
   const [includeFooter, setIncludeFooter] = useState(true);
+  const [includePayment, setIncludePayment] = useState(false);
+  const [includeSignature, setIncludeSignature] = useState(false);
   const [downloadDialogOpen, setDownloadDialogOpen] = useState(false);
 
   useEffect(() => {
@@ -412,6 +414,8 @@ export default function Invoices() {
       url.searchParams.set('format', format);
       url.searchParams.set('includeHeader', includeHeader.toString());
       url.searchParams.set('includeFooter', includeFooter.toString());
+      url.searchParams.set('includePayment', includePayment.toString());
+      url.searchParams.set('includeSignature', includeSignature.toString());
 
       const response = await fetch(url.toString(), {
         method: 'GET',
@@ -942,7 +946,7 @@ export default function Invoices() {
                 </div>
               )}
               <div className="space-y-4 pt-4 border-t">
-                <div className="flex items-center gap-4">
+                <div className="flex items-center gap-4 flex-wrap">
                   <div className="flex items-center space-x-2">
                     <input 
                       type="checkbox" 
@@ -962,6 +966,26 @@ export default function Invoices() {
                       className="h-4 w-4"
                     />
                     <label htmlFor="invIncludeFooter" className="text-sm">Include Footer</label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <input 
+                      type="checkbox" 
+                      id="invIncludePayment" 
+                      checked={includePayment}
+                      onChange={(e) => setIncludePayment(e.target.checked)}
+                      className="h-4 w-4"
+                    />
+                    <label htmlFor="invIncludePayment" className="text-sm">Include Payment Section</label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <input 
+                      type="checkbox" 
+                      id="invIncludeSignature" 
+                      checked={includeSignature}
+                      onChange={(e) => setIncludeSignature(e.target.checked)}
+                      className="h-4 w-4"
+                    />
+                    <label htmlFor="invIncludeSignature" className="text-sm">Include Signature</label>
                   </div>
                 </div>
                 <div className="flex justify-end gap-2">

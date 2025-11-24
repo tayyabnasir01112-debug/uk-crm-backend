@@ -305,6 +305,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const format = req.query.format || 'pdf';
       const includeHeader = req.query.includeHeader !== 'false';
       const includeFooter = req.query.includeFooter !== 'false';
+      const includePayment = req.query.includePayment === 'true';
+      const includeSignature = req.query.includeSignature === 'true';
 
       const business = await storage.getBusiness(userId);
       const businessAddress = business ? [
@@ -321,6 +323,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         businessPhone: business?.phone,
         footerText: business?.footerText,
         primaryColor: business?.primaryColor,
+        paymentLink: business?.paymentLink,
+        qrCodeUrl: business?.qrCodeUrl,
+        signatureUrl: business?.signatureUrl,
+        includePayment,
+        includeSignature,
       };
 
       if (format === 'pdf') {
@@ -355,6 +362,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const format = req.query.format || 'pdf';
       const includeHeader = req.query.includeHeader !== 'false';
       const includeFooter = req.query.includeFooter !== 'false';
+      const includePayment = req.query.includePayment === 'true';
+      const includeSignature = req.query.includeSignature === 'true';
 
       const business = await storage.getBusiness(userId);
       const businessAddress = business ? [
@@ -371,6 +380,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         businessPhone: business?.phone,
         footerText: business?.footerText,
         primaryColor: business?.primaryColor,
+        paymentLink: business?.paymentLink,
+        qrCodeUrl: business?.qrCodeUrl,
+        signatureUrl: business?.signatureUrl,
+        includePayment,
+        includeSignature,
       };
 
       if (format === 'pdf') {
@@ -405,6 +419,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const format = req.query.format || 'pdf';
       const includeHeader = req.query.includeHeader !== 'false';
       const includeFooter = req.query.includeFooter !== 'false';
+      const includePayment = req.query.includePayment === 'true';
+      const includeSignature = req.query.includeSignature === 'true';
 
       const business = await storage.getBusiness(userId);
       const businessAddress = business ? [
@@ -421,6 +437,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         businessPhone: business?.phone,
         footerText: business?.footerText,
         primaryColor: business?.primaryColor,
+        paymentLink: business?.paymentLink,
+        qrCodeUrl: business?.qrCodeUrl,
+        signatureUrl: business?.signatureUrl,
+        includePayment,
+        includeSignature,
       };
 
       if (format === 'pdf') {
