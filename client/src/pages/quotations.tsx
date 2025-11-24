@@ -27,6 +27,7 @@ import { getAPIBaseURL } from "@/lib/api";
 import type { Quotation, InventoryItem } from "@shared/schema";
 import { format } from "date-fns";
 import { useLocation } from "wouter";
+import { InventorySelector } from "@/components/inventory-selector";
 
 const quotationSchema = z.object({
   customerName: z.string().min(1, "Customer name is required"),
@@ -249,6 +250,8 @@ export default function Quotations() {
   };
 
   const onSubmit = (data: QuotationFormData) => {
+    // Note: Quotations don't reduce stock, so no validation needed here
+    // Stock validation happens when creating delivery challans or invoices
     if (isEditMode && editingQuotationId) {
       updateQuotationMutation.mutate({ id: editingQuotationId, data });
     } else {
@@ -492,28 +495,15 @@ export default function Quotations() {
                               <div className="flex gap-1">
                                 <Input placeholder="Item name" {...field} className="flex-1" />
                                 {inventoryItems.length > 0 && (
-                                  <select
-                                    className="border rounded px-2 text-sm w-32"
-                                    onChange={(e) => {
-                                      const selectedId = e.target.value;
-                                      if (selectedId) {
-                                        const selectedItem = inventoryItems.find(item => item.id === selectedId);
-                                        if (selectedItem) {
-                                          field.onChange(selectedItem.name);
-                                          form.setValue(`items.${index}.unitPrice`, parseFloat(selectedItem.unitPrice.toString()));
-                                          form.setValue(`items.${index}.inventoryItemId`, selectedItem.id);
-                                        }
-                                      }
+                                  <InventorySelector
+                                    inventoryItems={inventoryItems}
+                                    onSelect={(selectedItem) => {
+                                      field.onChange(selectedItem.name);
+                                      form.setValue(`items.${index}.unitPrice`, parseFloat(selectedItem.unitPrice.toString()));
+                                      form.setValue(`items.${index}.inventoryItemId`, selectedItem.id);
                                     }}
-                                    value=""
-                                  >
-                                    <option value="">From inventory</option>
-                                    {inventoryItems.map(item => (
-                                      <option key={item.id} value={item.id}>
-                                        {item.name} (£{parseFloat(item.unitPrice.toString()).toFixed(2)})
-                                      </option>
-                                    ))}
-                                  </select>
+                                    className="w-auto"
+                                  />
                                 )}
                               </div>
                             </FormControl>

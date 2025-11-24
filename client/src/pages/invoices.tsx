@@ -26,6 +26,7 @@ import { isUnauthorizedError } from "@/lib/authUtils";
 import { getAPIBaseURL } from "@/lib/api";
 import type { Invoice, Quotation, DeliveryChallan, InventoryItem } from "@shared/schema";
 import { format } from "date-fns";
+import { InventorySelector } from "@/components/inventory-selector";
 
 const invoiceSchema = z.object({
   customerName: z.string().min(1, "Customer name is required"),
@@ -401,6 +402,28 @@ export default function Invoices() {
   };
 
   const onSubmit = (data: InvoiceFormData) => {
+    // Validate stock before submission
+    const stockErrors: string[] = [];
+    data.items.forEach((item) => {
+      if (item.inventoryItemId) {
+        const inventoryItem = inventoryItems.find(i => i.id === item.inventoryItemId);
+        if (inventoryItem) {
+          if (item.quantity > inventoryItem.quantity) {
+            stockErrors.push(`${item.name}: Requested ${item.quantity}, but only ${inventoryItem.quantity} available in stock`);
+          }
+        }
+      }
+    });
+    
+    if (stockErrors.length > 0) {
+      toast({
+        title: "Insufficient Stock",
+        description: stockErrors.join("\n"),
+        variant: "destructive",
+      });
+      return;
+    }
+    
     createMutation.mutate(data);
   };
 
@@ -745,29 +768,16 @@ export default function Invoices() {
                                 <div className="flex gap-1">
                                   <Input placeholder="Item name" {...field} className="flex-1" />
                                   {inventoryItems.length > 0 && (
-                                    <select
-                                      className="border rounded px-2 text-sm w-32"
-                                      onChange={(e) => {
-                                        const selectedId = e.target.value;
-                                        if (selectedId) {
-                                          const selectedItem = inventoryItems.find(item => item.id === selectedId);
-                                          if (selectedItem) {
-                                            field.onChange(selectedItem.name);
-                                            form.setValue(`items.${index}.unitPrice`, parseFloat(selectedItem.unitPrice.toString()));
-                                            form.setValue(`items.${index}.inventoryItemId`, selectedItem.id);
-                                            form.setValue(`items.${index}.quantity`, 1);
-                                          }
-                                        }
+                                    <InventorySelector
+                                      inventoryItems={inventoryItems}
+                                      onSelect={(selectedItem) => {
+                                        field.onChange(selectedItem.name);
+                                        form.setValue(`items.${index}.unitPrice`, parseFloat(selectedItem.unitPrice.toString()));
+                                        form.setValue(`items.${index}.inventoryItemId`, selectedItem.id);
+                                        form.setValue(`items.${index}.quantity`, 1);
                                       }}
-                                      value=""
-                                    >
-                                      <option value="">From inventory</option>
-                                      {inventoryItems.map(item => (
-                                        <option key={item.id} value={item.id}>
-                                          {item.name} (£{parseFloat(item.unitPrice.toString()).toFixed(2)})
-                                        </option>
-                                      ))}
-                                    </select>
+                                      className="w-auto"
+                                    />
                                   )}
                                 </div>
                               </FormControl>

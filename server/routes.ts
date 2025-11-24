@@ -278,8 +278,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
         baseDocNumber = match ? match[1] : validatedData.invoiceNumber.replace(/^INV-/, '');
       }
       
-      // Update inventory - decrease stock when invoice is created (items sold)
+      // Validate and update inventory - decrease stock when invoice is created (items sold)
       if (Array.isArray(validatedData.items)) {
+        const stockErrors: string[] = [];
+        for (const item of validatedData.items) {
+          if (item.inventoryItemId) {
+            const inventoryItem = await storage.getInventoryItem(item.inventoryItemId);
+            if (inventoryItem && inventoryItem.userId === userId) {
+              const quantityToDeduct = typeof item.quantity === 'number' ? item.quantity : parseFloat(item.quantity) || 0;
+              if (quantityToDeduct > inventoryItem.quantity) {
+                stockErrors.push(`${item.name || 'Item'}: Requested ${quantityToDeduct}, but only ${inventoryItem.quantity} available in stock`);
+              }
+            }
+          }
+        }
+        if (stockErrors.length > 0) {
+          return res.status(400).json({ 
+            message: "Insufficient stock", 
+            errors: stockErrors 
+          });
+        }
+        
+        // All validations passed, now update inventory
         for (const item of validatedData.items) {
           if (item.inventoryItemId) {
             const inventoryItem = await storage.getInventoryItem(item.inventoryItemId);
@@ -421,8 +441,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
         baseDocNumber = match ? match[1] : validatedData.challanNumber.replace(/^DC-/, '');
       }
       
-      // Update inventory - decrease stock when items are shipped
+      // Validate and update inventory - decrease stock when items are shipped
       if (Array.isArray(validatedData.items)) {
+        const stockErrors: string[] = [];
+        for (const item of validatedData.items) {
+          if (item.inventoryItemId) {
+            const inventoryItem = await storage.getInventoryItem(item.inventoryItemId);
+            if (inventoryItem && inventoryItem.userId === userId) {
+              const quantityToDeduct = typeof item.quantity === 'number' ? item.quantity : parseFloat(item.quantity) || 0;
+              if (quantityToDeduct > inventoryItem.quantity) {
+                stockErrors.push(`${item.name || 'Item'}: Requested ${quantityToDeduct}, but only ${inventoryItem.quantity} available in stock`);
+              }
+            }
+        }
+        }
+        if (stockErrors.length > 0) {
+          return res.status(400).json({ 
+            message: "Insufficient stock", 
+            errors: stockErrors 
+          });
+        }
+        
+        // All validations passed, now update inventory
         for (const item of validatedData.items) {
           if (item.inventoryItemId) {
             const inventoryItem = await storage.getInventoryItem(item.inventoryItemId);

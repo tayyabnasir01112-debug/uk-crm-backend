@@ -27,6 +27,7 @@ import { getAPIBaseURL } from "@/lib/api";
 import type { DeliveryChallan, Quotation, InventoryItem } from "@shared/schema";
 import { format } from "date-fns";
 import { useLocation } from "wouter";
+import { InventorySelector } from "@/components/inventory-selector";
 
 const challanSchema = z.object({
   customerName: z.string().min(1, "Customer name is required"),
@@ -181,6 +182,7 @@ export default function DeliveryChallans() {
       }
 
       queryClient.invalidateQueries({ queryKey: ["/api/delivery-challans"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/inventory"] }); // Refresh inventory after stock deduction
       setDialogOpen(false);
       setSourceQuotation(null);
       form.reset({
@@ -192,7 +194,7 @@ export default function DeliveryChallans() {
         notes: "",
       });
     },
-    onError: (error: Error) => {
+    onError: (error: any) => {
       if (isUnauthorizedError(error)) {
         toast({
           title: "Unauthorized",
@@ -204,9 +206,11 @@ export default function DeliveryChallans() {
         }, 500);
         return;
       }
+      const errorMessage = error?.response?.data?.message || error.message || "Failed to create delivery challan";
+      const errorDetails = error?.response?.data?.errors;
       toast({
-        title: "Error",
-        description: "Failed to create delivery challan",
+        title: errorMessage,
+        description: errorDetails ? (Array.isArray(errorDetails) ? errorDetails.join("\n") : errorDetails) : errorMessage,
         variant: "destructive",
       });
     },
@@ -291,6 +295,28 @@ export default function DeliveryChallans() {
   };
 
   const onSubmit = (data: ChallanFormData) => {
+    // Validate stock before submission
+    const stockErrors: string[] = [];
+    data.items.forEach((item) => {
+      if (item.inventoryItemId) {
+        const inventoryItem = inventoryItems.find(i => i.id === item.inventoryItemId);
+        if (inventoryItem) {
+          if (item.quantity > inventoryItem.quantity) {
+            stockErrors.push(`${item.name}: Requested ${item.quantity}, but only ${inventoryItem.quantity} available in stock`);
+          }
+        }
+      }
+    });
+    
+    if (stockErrors.length > 0) {
+      toast({
+        title: "Insufficient Stock",
+        description: stockErrors.join("\n"),
+        variant: "destructive",
+      });
+      return;
+    }
+    
     createMutation.mutate(data);
   };
 
@@ -541,29 +567,16 @@ export default function DeliveryChallans() {
                               <div className="flex gap-1">
                                 <Input placeholder="Item name" {...field} className="flex-1" />
                                 {inventoryItems.length > 0 && (
-                                  <select
-                                    className="border rounded px-2 text-sm w-32"
-                                    onChange={(e) => {
-                                      const selectedId = e.target.value;
-                                      if (selectedId) {
-                                        const selectedItem = inventoryItems.find(item => item.id === selectedId);
-                                        if (selectedItem) {
-                                          field.onChange(selectedItem.name);
-                                          form.setValue(`items.${index}.inventoryItemId`, selectedItem.id);
-                                          form.setValue(`items.${index}.quantity`, 1);
-                                          form.setValue(`items.${index}.unit`, selectedItem.unit || "pcs");
-                                        }
-                                      }
+                                  <InventorySelector
+                                    inventoryItems={inventoryItems}
+                                    onSelect={(selectedItem) => {
+                                      field.onChange(selectedItem.name);
+                                      form.setValue(`items.${index}.inventoryItemId`, selectedItem.id);
+                                      form.setValue(`items.${index}.quantity`, 1);
+                                      form.setValue(`items.${index}.unit`, selectedItem.unit || "pcs");
                                     }}
-                                    value=""
-                                  >
-                                    <option value="">From inventory</option>
-                                    {inventoryItems.map(item => (
-                                      <option key={item.id} value={item.id}>
-                                        {item.name} (Stock: {item.quantity})
-                                      </option>
-                                    ))}
-                                  </select>
+                                    className="w-auto"
+                                  />
                                 )}
                               </div>
                             </FormControl>
