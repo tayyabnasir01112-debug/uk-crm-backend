@@ -387,7 +387,7 @@ export default function Login() {
                   <Input
                     id="password"
                     type="password"
-                    placeholder={isLogin ? "Enter your password" : "Create a secure password"}
+                    placeholder="Enter password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     required
@@ -435,10 +435,15 @@ export default function Login() {
                     maxLength={6}
                     value={verificationCode}
                     onChange={(value) => setVerificationCode(value)}
+                    className="flex justify-center"
                   >
-                    <InputOTPGroup className="flex gap-2">
+                    <InputOTPGroup className="flex gap-3">
                       {Array.from({ length: 6 }).map((_, index) => (
-                        <InputOTPSlot key={index} index={index} className="w-12 h-12 text-lg" />
+                        <InputOTPSlot
+                          key={index}
+                          index={index}
+                          className="w-12 h-12 text-lg text-center"
+                        />
                       ))}
                     </InputOTPGroup>
                   </InputOTP>
