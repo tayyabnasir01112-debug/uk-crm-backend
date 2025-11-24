@@ -750,7 +750,25 @@ export default function Quotations() {
               <div className="grid grid-cols-3 gap-4 pt-4 border-t">
                 <div>
                   <p className="text-sm font-medium text-muted-foreground">Subtotal</p>
-                  <p className="text-lg font-semibold">£{typeof selectedQuotation.subtotal === 'string' ? parseFloat(selectedQuotation.subtotal).toFixed(2) : selectedQuotation.subtotal?.toFixed(2) || "0.00"}</p>
+                  <p className="text-lg font-semibold">
+                    {(() => {
+                      // Recalculate subtotal from items
+                      let calculatedSubtotal = 0;
+                      if (Array.isArray(selectedQuotation.items)) {
+                        selectedQuotation.items.forEach((item: any) => {
+                          const quantity = typeof item.quantity === 'number' ? item.quantity : parseFloat(item.quantity || 0);
+                          const unitPrice = typeof item.unitPrice === 'number' ? item.unitPrice : parseFloat(item.unitPrice || 0);
+                          let itemTotal = typeof item.total === 'number' ? item.total : parseFloat(item.total || 0);
+                          if (itemTotal === 0 && unitPrice > 0 && quantity > 0) {
+                            itemTotal = unitPrice * quantity;
+                          }
+                          calculatedSubtotal += itemTotal;
+                        });
+                      }
+                      const subtotal = calculatedSubtotal > 0 ? calculatedSubtotal : (typeof selectedQuotation.subtotal === 'string' ? parseFloat(selectedQuotation.subtotal) : selectedQuotation.subtotal || 0);
+                      return `£${subtotal.toFixed(2)}`;
+                    })()}
+                  </p>
                 </div>
                 <div>
                   <p className="text-sm font-medium text-muted-foreground">Tax Rate</p>
@@ -758,12 +776,53 @@ export default function Quotations() {
                 </div>
                 <div>
                   <p className="text-sm font-medium text-muted-foreground">Tax Amount</p>
-                  <p className="text-lg font-semibold">£{typeof selectedQuotation.taxAmount === 'string' ? parseFloat(selectedQuotation.taxAmount).toFixed(2) : selectedQuotation.taxAmount?.toFixed(2) || "0.00"}</p>
+                  <p className="text-lg font-semibold">
+                    {(() => {
+                      // Recalculate tax amount
+                      let calculatedSubtotal = 0;
+                      if (Array.isArray(selectedQuotation.items)) {
+                        selectedQuotation.items.forEach((item: any) => {
+                          const quantity = typeof item.quantity === 'number' ? item.quantity : parseFloat(item.quantity || 0);
+                          const unitPrice = typeof item.unitPrice === 'number' ? item.unitPrice : parseFloat(item.unitPrice || 0);
+                          let itemTotal = typeof item.total === 'number' ? item.total : parseFloat(item.total || 0);
+                          if (itemTotal === 0 && unitPrice > 0 && quantity > 0) {
+                            itemTotal = unitPrice * quantity;
+                          }
+                          calculatedSubtotal += itemTotal;
+                        });
+                      }
+                      const subtotal = calculatedSubtotal > 0 ? calculatedSubtotal : (typeof selectedQuotation.subtotal === 'string' ? parseFloat(selectedQuotation.subtotal) : selectedQuotation.subtotal || 0);
+                      const taxRate = typeof selectedQuotation.taxRate === 'string' ? parseFloat(selectedQuotation.taxRate) : selectedQuotation.taxRate || 20;
+                      const taxAmount = subtotal * (taxRate / 100);
+                      return `£${taxAmount.toFixed(2)}`;
+                    })()}
+                  </p>
                 </div>
               </div>
               <div className="pt-2 border-t">
                 <p className="text-sm font-medium text-muted-foreground">Total</p>
-                <p className="text-2xl font-bold">£{typeof selectedQuotation.total === 'string' ? parseFloat(selectedQuotation.total).toFixed(2) : selectedQuotation.total?.toFixed(2) || "0.00"}</p>
+                <p className="text-2xl font-bold">
+                  {(() => {
+                    // Recalculate total from items
+                    let calculatedSubtotal = 0;
+                    if (Array.isArray(selectedQuotation.items)) {
+                      selectedQuotation.items.forEach((item: any) => {
+                        const quantity = typeof item.quantity === 'number' ? item.quantity : parseFloat(item.quantity || 0);
+                        const unitPrice = typeof item.unitPrice === 'number' ? item.unitPrice : parseFloat(item.unitPrice || 0);
+                        let itemTotal = typeof item.total === 'number' ? item.total : parseFloat(item.total || 0);
+                        if (itemTotal === 0 && unitPrice > 0 && quantity > 0) {
+                          itemTotal = unitPrice * quantity;
+                        }
+                        calculatedSubtotal += itemTotal;
+                      });
+                    }
+                    const subtotal = calculatedSubtotal > 0 ? calculatedSubtotal : (typeof selectedQuotation.subtotal === 'string' ? parseFloat(selectedQuotation.subtotal) : selectedQuotation.subtotal || 0);
+                    const taxRate = typeof selectedQuotation.taxRate === 'string' ? parseFloat(selectedQuotation.taxRate) : selectedQuotation.taxRate || 20;
+                    const taxAmount = subtotal * (taxRate / 100);
+                    const total = subtotal + taxAmount;
+                    return `£${total.toFixed(2)}`;
+                  })()}
+                </p>
               </div>
               {selectedQuotation.notes && (
                 <div>

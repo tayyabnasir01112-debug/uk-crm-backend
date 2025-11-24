@@ -24,7 +24,7 @@ import { Plus, Search, Eye, Download, Edit, Trash2, X, FileCheck, FileText, Truc
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { isUnauthorizedError } from "@/lib/authUtils";
 import { getAPIBaseURL } from "@/lib/api";
-import type { Invoice, Quotation, DeliveryChallan } from "@shared/schema";
+import type { Invoice, Quotation, DeliveryChallan, InventoryItem } from "@shared/schema";
 import { format } from "date-fns";
 
 const invoiceSchema = z.object({
@@ -37,6 +37,7 @@ const invoiceSchema = z.object({
     quantity: z.number().min(0.01, "Quantity must be greater than 0"),
     unitPrice: z.number().min(0, "Unit price must be 0 or greater"),
     total: z.number(),
+    inventoryItemId: z.string().optional(),
   })).min(1, "At least one item is required"),
   subtotal: z.number(),
   taxRate: z.number(),
@@ -86,6 +87,10 @@ export default function Invoices() {
 
   const { data: challans = [] } = useQuery<DeliveryChallan[]>({
     queryKey: ["/api/delivery-challans"],
+  });
+
+  const { data: inventoryItems = [] } = useQuery<InventoryItem[]>({
+    queryKey: ["/api/inventory"],
   });
 
   // Check for quotation or challan data from localStorage
@@ -505,24 +510,19 @@ export default function Invoices() {
         console.log("Mark as paid response:", data);
         
         // Update quotation status if invoice was created from a quotation
-        if (invoice) {
-          // Find quotation with matching customer name and similar total
-          const matchingQuotation = quotations.find(q => 
-            q.customerName === invoice.customerName && 
-            q.status === 'accepted' &&
-            Math.abs(parseFloat(q.total.toString()) - parseFloat(invoice.total.toString())) < 0.01
-          );
-          
-          if (matchingQuotation) {
-            const formattedDate = paidDate.toLocaleDateString('en-GB', { 
-              day: 'numeric', 
-              month: 'long', 
-              year: 'numeric' 
-            });
-            await apiRequest("PUT", `/api/quotations/${matchingQuotation.id}`, {
+        if (invoice && (invoice as any).sourceQuotationId) {
+          const formattedDate = paidDate.toLocaleDateString('en-GB', { 
+            day: 'numeric', 
+            month: 'long', 
+            year: 'numeric' 
+          });
+          try {
+            await apiRequest("PUT", `/api/quotations/${(invoice as any).sourceQuotationId}`, {
               status: `invoice generated and paid on: ${formattedDate}`
             });
             queryClient.invalidateQueries({ queryKey: ["/api/quotations"] });
+          } catch (error) {
+            console.error("Failed to update quotation status:", error);
           }
         }
         
@@ -713,10 +713,40 @@ export default function Invoices() {
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
                       <FormLabel>Items *</FormLabel>
-                      <Button type="button" variant="outline" size="sm" onClick={addItem}>
-                        <Plus className="h-4 w-4 mr-1" />
-                        Add Item
-                      </Button>
+                      <div className="flex gap-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            const selectedItems = inventoryItems.filter(item => item.quantity > 0);
+                            if (selectedItems.length > 0) {
+                              const currentItems = form.getValues("items");
+                              const newItems = selectedItems.map(item => ({
+                                name: item.name,
+                                quantity: 1,
+                                unitPrice: parseFloat(item.unitPrice.toString()),
+                                total: parseFloat(item.unitPrice.toString()),
+                                inventoryItemId: item.id,
+                              }));
+                              form.setValue("items", [...currentItems, ...newItems]);
+                            } else {
+                              toast({
+                                title: "No inventory items",
+                                description: "Please add items to inventory first",
+                                variant: "destructive",
+                              });
+                            }
+                          }}
+                        >
+                          <Plus className="h-4 w-4 mr-1" />
+                          Add from Inventory
+                        </Button>
+                        <Button type="button" variant="outline" size="sm" onClick={addItem}>
+                          <Plus className="h-4 w-4 mr-1" />
+                          Add Item
+                        </Button>
+                      </div>
                     </div>
                     {form.watch("items").map((item, index) => (
                       <div key={index} className="grid grid-cols-12 gap-2 items-end p-2 border rounded">
@@ -727,7 +757,34 @@ export default function Invoices() {
                             <FormItem className="col-span-4">
                               <FormLabel className="text-xs">Item Name</FormLabel>
                               <FormControl>
-                                <Input placeholder="Item name" {...field} />
+                                <div className="flex gap-1">
+                                  <Input placeholder="Item name" {...field} className="flex-1" />
+                                  {inventoryItems.length > 0 && (
+                                    <select
+                                      className="border rounded px-2 text-sm w-32"
+                                      onChange={(e) => {
+                                        const selectedId = e.target.value;
+                                        if (selectedId) {
+                                          const selectedItem = inventoryItems.find(item => item.id === selectedId);
+                                          if (selectedItem) {
+                                            field.onChange(selectedItem.name);
+                                            form.setValue(`items.${index}.unitPrice`, parseFloat(selectedItem.unitPrice.toString()));
+                                            form.setValue(`items.${index}.inventoryItemId`, selectedItem.id);
+                                            form.setValue(`items.${index}.quantity`, 1);
+                                          }
+                                        }
+                                      }}
+                                      value=""
+                                    >
+                                      <option value="">From inventory</option>
+                                      {inventoryItems.map(item => (
+                                        <option key={item.id} value={item.id}>
+                                          {item.name} (£{parseFloat(item.unitPrice.toString()).toFixed(2)})
+                                        </option>
+                                      ))}
+                                    </select>
+                                  )}
+                                </div>
                               </FormControl>
                               <FormMessage />
                             </FormItem>

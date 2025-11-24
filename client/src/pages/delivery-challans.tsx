@@ -24,7 +24,7 @@ import { Plus, Search, Eye, Download, Edit, Trash2, TruckIcon, X, FileText, File
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { isUnauthorizedError } from "@/lib/authUtils";
 import { getAPIBaseURL } from "@/lib/api";
-import type { DeliveryChallan, Quotation } from "@shared/schema";
+import type { DeliveryChallan, Quotation, InventoryItem } from "@shared/schema";
 import { format } from "date-fns";
 import { useLocation } from "wouter";
 
@@ -37,6 +37,7 @@ const challanSchema = z.object({
     name: z.string().min(1, "Item name is required"),
     quantity: z.number().min(0.01, "Quantity must be greater than 0"),
     unit: z.string(),
+    inventoryItemId: z.string().optional(),
   })).min(1, "At least one item is required"),
   notes: z.string().optional(),
 });
@@ -77,6 +78,10 @@ export default function DeliveryChallans() {
 
   const { data: quotations = [] } = useQuery<Quotation[]>({
     queryKey: ["/api/quotations"],
+  });
+
+  const { data: inventoryItems = [] } = useQuery<InventoryItem[]>({
+    queryKey: ["/api/inventory"],
   });
 
   // Check for quotation data from localStorage
@@ -490,10 +495,39 @@ export default function DeliveryChallans() {
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
                     <FormLabel>Items *</FormLabel>
-                    <Button type="button" variant="outline" size="sm" onClick={addItem}>
-                      <Plus className="h-4 w-4 mr-1" />
-                      Add Item
-                    </Button>
+                    <div className="flex gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          const selectedItems = inventoryItems.filter(item => item.quantity > 0);
+                          if (selectedItems.length > 0) {
+                            const currentItems = form.getValues("items");
+                            const newItems = selectedItems.map(item => ({
+                              name: item.name,
+                              quantity: 1,
+                              unit: item.unit || "pcs",
+                              inventoryItemId: item.id,
+                            }));
+                            form.setValue("items", [...currentItems, ...newItems]);
+                          } else {
+                            toast({
+                              title: "No inventory items",
+                              description: "Please add items to inventory first",
+                              variant: "destructive",
+                            });
+                          }
+                        }}
+                      >
+                        <Plus className="h-4 w-4 mr-1" />
+                        Add from Inventory
+                      </Button>
+                      <Button type="button" variant="outline" size="sm" onClick={addItem}>
+                        <Plus className="h-4 w-4 mr-1" />
+                        Add Item
+                      </Button>
+                    </div>
                   </div>
                   {form.watch("items").map((item, index) => (
                     <div key={index} className="grid grid-cols-12 gap-2 items-end p-2 border rounded">
@@ -504,7 +538,34 @@ export default function DeliveryChallans() {
                           <FormItem className="col-span-5">
                             <FormLabel className="text-xs">Item Name</FormLabel>
                             <FormControl>
-                              <Input placeholder="Item name" {...field} />
+                              <div className="flex gap-1">
+                                <Input placeholder="Item name" {...field} className="flex-1" />
+                                {inventoryItems.length > 0 && (
+                                  <select
+                                    className="border rounded px-2 text-sm w-32"
+                                    onChange={(e) => {
+                                      const selectedId = e.target.value;
+                                      if (selectedId) {
+                                        const selectedItem = inventoryItems.find(item => item.id === selectedId);
+                                        if (selectedItem) {
+                                          field.onChange(selectedItem.name);
+                                          form.setValue(`items.${index}.inventoryItemId`, selectedItem.id);
+                                          form.setValue(`items.${index}.quantity`, 1);
+                                          form.setValue(`items.${index}.unit`, selectedItem.unit || "pcs");
+                                        }
+                                      }
+                                    }}
+                                    value=""
+                                  >
+                                    <option value="">From inventory</option>
+                                    {inventoryItems.map(item => (
+                                      <option key={item.id} value={item.id}>
+                                        {item.name} (Stock: {item.quantity})
+                                      </option>
+                                    ))}
+                                  </select>
+                                )}
+                              </div>
                             </FormControl>
                             <FormMessage />
                           </FormItem>
