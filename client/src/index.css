@@ -285,4 +285,22 @@
   .border.hover-elevate:not(.no-hover-interaction-elevate)::after {
     inset: -1px;
   }
+
+  /* Ensure sidebar footer is always visible */
+  [data-sidebar="sidebar"] {
+    display: flex !important;
+    flex-direction: column !important;
+    height: 100% !important;
+  }
+
+  [data-sidebar="footer"] {
+    margin-top: auto !important;
+    flex-shrink: 0 !important;
+  }
+
+  [data-sidebar="content"] {
+    flex: 1 1 auto !important;
+    overflow-y: auto !important;
+    min-height: 0 !important;
+  }
 }
