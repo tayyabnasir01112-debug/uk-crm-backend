@@ -444,9 +444,9 @@ export default function Quotations() {
                 </div>
 
                 {/* Items Section */}
-                <div className="space-y-2">
+                <div className="space-y-4">
                   <div className="flex items-center justify-between">
-                    <FormLabel>Items *</FormLabel>
+                    <FormLabel className="text-base font-semibold">Items *</FormLabel>
                     <div className="flex gap-2">
                       <Button
                         type="button"
@@ -483,102 +483,124 @@ export default function Quotations() {
                       </Button>
                     </div>
                   </div>
-                  {form.watch("items").map((item, index) => (
-                    <div key={index} className="grid grid-cols-12 gap-2 items-end p-2 border rounded">
-                      <FormField
-                        control={form.control}
-                        name={`items.${index}.name`}
-                        render={({ field }) => (
-                          <FormItem className="col-span-4">
-                            <FormLabel className="text-xs">Item Name</FormLabel>
-                            <FormControl>
-                              <div className="flex gap-1">
-                                <Input placeholder="Item name" {...field} className="flex-1" />
-                                {inventoryItems.length > 0 && (
-                                  <InventorySelector
-                                    inventoryItems={inventoryItems}
-                                    onSelect={(selectedItem) => {
-                                      field.onChange(selectedItem.name);
-                                      form.setValue(`items.${index}.unitPrice`, parseFloat(selectedItem.unitPrice.toString()));
-                                      form.setValue(`items.${index}.quantity`, 1);
-                                      form.setValue(`items.${index}.inventoryItemId`, selectedItem.id);
-                                    }}
-                                    className="w-auto"
-                                  />
-                                )}
-                              </div>
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      <FormField
-                        control={form.control}
-                        name={`items.${index}.quantity`}
-                        render={({ field }) => (
-                          <FormItem className="col-span-2">
-                            <FormLabel className="text-xs">Qty</FormLabel>
-                            <FormControl>
-                              <Input
-                                type="number"
-                                step="1"
-                                min="1"
-                                {...field}
-                                value={field.value || 1}
-                                onChange={(e) => {
-                                  const val = parseInt(e.target.value) || 1;
-                                  field.onChange(Math.max(1, val));
-                                }}
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      <FormField
-                        control={form.control}
-                        name={`items.${index}.unitPrice`}
-                        render={({ field }) => (
-                          <FormItem className="col-span-2">
-                            <FormLabel className="text-xs">Unit Price</FormLabel>
-                            <FormControl>
-                              <Input
-                                type="number"
-                                step="0.01"
-                                min="0"
-                                {...field}
-                                onChange={(e) => {
-                                  const val = parseFloat(e.target.value) || 0;
-                                  field.onChange(val);
-                                }}
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      <FormItem className="col-span-2">
-                        <FormLabel className="text-xs">Total</FormLabel>
-                        <Input
-                          value={item.total.toFixed(2)}
-                          disabled
-                          className="bg-muted"
-                        />
-                      </FormItem>
-                      <div className="col-span-2 flex justify-end">
-                        {form.watch("items").length > 1 && (
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => removeItem(index)}
-                          >
-                            <X className="h-4 w-4" />
-                          </Button>
-                        )}
-                      </div>
+                  
+                  <div className="border rounded-lg overflow-hidden">
+                    <div className="bg-muted/50 grid grid-cols-12 gap-4 px-4 py-2 text-sm font-medium">
+                      <div className="col-span-5">Item Name</div>
+                      <div className="col-span-2">Quantity</div>
+                      <div className="col-span-2">Unit Price</div>
+                      <div className="col-span-2">Total</div>
+                      <div className="col-span-1"></div>
                     </div>
-                  ))}
+                    <div className="divide-y">
+                      {form.watch("items").map((item, index) => (
+                        <div key={index} className="grid grid-cols-12 gap-4 px-4 py-3 items-center hover:bg-muted/30 transition-colors">
+                          <FormField
+                            control={form.control}
+                            name={`items.${index}.name`}
+                            render={({ field }) => (
+                              <FormItem className="col-span-5">
+                                <FormControl>
+                                  <div className="flex items-center gap-2">
+                                    <Input 
+                                      placeholder="Enter item name" 
+                                      {...field} 
+                                      className="flex-1"
+                                    />
+                                    {inventoryItems.length > 0 && (
+                                      <InventorySelector
+                                        inventoryItems={inventoryItems}
+                                        onSelect={(selectedItem) => {
+                                          field.onChange(selectedItem.name);
+                                          form.setValue(`items.${index}.unitPrice`, parseFloat(selectedItem.unitPrice.toString()));
+                                          form.setValue(`items.${index}.quantity`, 1);
+                                          form.setValue(`items.${index}.inventoryItemId`, selectedItem.id);
+                                          // Auto-add new row if this is the last row and it's now filled
+                                          const currentItems = form.getValues("items");
+                                          if (index === currentItems.length - 1 && !currentItems[currentItems.length - 1].name) {
+                                            // Only add if current row was empty
+                                          } else if (index === currentItems.length - 1) {
+                                            // Add new row after populating current one
+                                            form.setValue("items", [...currentItems, { name: "", quantity: 1, unitPrice: 0, total: 0 }]);
+                                          }
+                                        }}
+                                      />
+                                    )}
+                                  </div>
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                          <FormField
+                            control={form.control}
+                            name={`items.${index}.quantity`}
+                            render={({ field }) => (
+                              <FormItem className="col-span-2">
+                                <FormControl>
+                                  <Input
+                                    type="number"
+                                    step="1"
+                                    min="1"
+                                    {...field}
+                                    value={field.value || 1}
+                                    onChange={(e) => {
+                                      const val = parseInt(e.target.value) || 1;
+                                      field.onChange(Math.max(1, val));
+                                    }}
+                                    className="text-center"
+                                  />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                          <FormField
+                            control={form.control}
+                            name={`items.${index}.unitPrice`}
+                            render={({ field }) => (
+                              <FormItem className="col-span-2">
+                                <FormControl>
+                                  <Input
+                                    type="number"
+                                    step="0.01"
+                                    min="0"
+                                    {...field}
+                                    onChange={(e) => {
+                                      const val = parseFloat(e.target.value) || 0;
+                                      field.onChange(val);
+                                    }}
+                                    className="text-right"
+                                  />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                          <FormItem className="col-span-2">
+                            <Input
+                              value={`£${item.total.toFixed(2)}`}
+                              disabled
+                              className="bg-muted text-right font-medium"
+                            />
+                          </FormItem>
+                          <div className="col-span-1 flex justify-end">
+                            {form.watch("items").length > 1 && (
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => removeItem(index)}
+                                className="h-8 w-8 text-destructive hover:text-destructive"
+                              >
+                                <X className="h-4 w-4" />
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-3 gap-4 pt-4 border-t">
