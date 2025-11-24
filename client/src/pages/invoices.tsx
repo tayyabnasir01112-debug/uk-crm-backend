@@ -35,7 +35,7 @@ const invoiceSchema = z.object({
   invoiceNumber: z.string().min(1, "Invoice number is required"),
   items: z.array(z.object({
     name: z.string().min(1, "Item name is required"),
-    quantity: z.number().min(0.01, "Quantity must be greater than 0"),
+    quantity: z.coerce.number().int().min(1, "Quantity must be at least 1"),
     unitPrice: z.number().min(0, "Unit price must be 0 or greater"),
     total: z.number(),
     inventoryItemId: z.string().optional(),
@@ -797,12 +797,13 @@ export default function Invoices() {
                               <FormControl>
                                 <Input
                                   type="number"
-                                  step="0.01"
-                                  min="0"
+                                  step="1"
+                                  min="1"
                                   {...field}
+                                  value={field.value || 1}
                                   onChange={(e) => {
-                                    const val = parseFloat(e.target.value) || 0;
-                                    field.onChange(val);
+                                    const val = parseInt(e.target.value) || 1;
+                                    field.onChange(Math.max(1, val));
                                   }}
                                 />
                               </FormControl>
@@ -819,12 +820,13 @@ export default function Invoices() {
                               <FormControl>
                                 <Input
                                   type="number"
-                                  step="0.01"
-                                  min="0"
+                                  step="1"
+                                  min="1"
                                   {...field}
+                                  value={field.value || 1}
                                   onChange={(e) => {
-                                    const val = parseFloat(e.target.value) || 0;
-                                    field.onChange(val);
+                                    const val = parseInt(e.target.value) || 1;
+                                    field.onChange(Math.max(1, val));
                                   }}
                                 />
                               </FormControl>

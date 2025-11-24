@@ -41,6 +41,8 @@ export default function Inventory() {
   const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [editingItemId, setEditingItemId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
@@ -83,6 +85,8 @@ export default function Inventory() {
       queryClient.invalidateQueries({ queryKey: ["/api/inventory"] });
       setDialogOpen(false);
       form.reset();
+      setIsEditMode(false);
+      setEditingItemId(null);
     },
     onError: (error: Error) => {
       if (isUnauthorizedError(error)) {
@@ -99,6 +103,42 @@ export default function Inventory() {
       toast({
         title: "Error",
         description: "Failed to add product",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: InventoryFormData }) => {
+      const response = await apiRequest("PUT", `/api/inventory/${id}`, data);
+      return await response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Success",
+        description: "Product updated successfully",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/inventory"] });
+      setDialogOpen(false);
+      setIsEditMode(false);
+      setEditingItemId(null);
+      form.reset();
+    },
+    onError: (error: Error) => {
+      if (isUnauthorizedError(error)) {
+        toast({
+          title: "Unauthorized",
+          description: "You are logged out. Logging in again...",
+          variant: "destructive",
+        });
+        setTimeout(() => {
+          window.location.href = "/login";
+        }, 500);
+        return;
+      }
+      toast({
+        title: "Error",
+        description: "Failed to update product",
         variant: "destructive",
       });
     },
@@ -141,7 +181,25 @@ export default function Inventory() {
   );
 
   const onSubmit = (data: InventoryFormData) => {
-    createMutation.mutate(data);
+    if (isEditMode && editingItemId) {
+      updateMutation.mutate({ id: editingItemId, data });
+    } else {
+      createMutation.mutate(data);
+    }
+  };
+
+  const handleEdit = (item: InventoryItem) => {
+    setIsEditMode(true);
+    setEditingItemId(item.id);
+    setDialogOpen(true);
+    form.reset({
+      name: item.name,
+      description: item.description || "",
+      sku: item.sku || "",
+      quantity: item.quantity,
+      unitPrice: parseFloat(item.unitPrice.toString()),
+      unit: item.unit || "pcs",
+    });
   };
 
   const totalValue = items.reduce((sum, item) => sum + (item.quantity * parseFloat(item.unitPrice.toString())), 0);
@@ -165,7 +223,17 @@ export default function Inventory() {
           <h1 className="text-3xl font-bold mb-2">Inventory Management</h1>
           <p className="text-muted-foreground">Track and manage your product stock</p>
         </div>
-        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <Dialog 
+          open={dialogOpen} 
+          onOpenChange={(open) => {
+            setDialogOpen(open);
+            if (!open) {
+              setIsEditMode(false);
+              setEditingItemId(null);
+              form.reset();
+            }
+          }}
+        >
           <DialogTrigger asChild>
             <Button data-testid="button-add-product">
               <Plus className="h-4 w-4 mr-2" />
@@ -174,7 +242,7 @@ export default function Inventory() {
           </DialogTrigger>
           <DialogContent className="max-w-2xl">
             <DialogHeader>
-              <DialogTitle>Add New Product</DialogTitle>
+              <DialogTitle>{isEditMode ? "Edit Product" : "Add New Product"}</DialogTitle>
             </DialogHeader>
             <Form {...form}>
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
@@ -262,8 +330,18 @@ export default function Inventory() {
                   <Button type="button" variant="outline" onClick={() => setDialogOpen(false)} data-testid="button-cancel">
                     Cancel
                   </Button>
-                  <Button type="submit" disabled={createMutation.isPending} data-testid="button-submit">
-                    {createMutation.isPending ? "Adding..." : "Add Product"}
+                  <Button 
+                    type="submit" 
+                    disabled={isEditMode ? updateMutation.isPending : createMutation.isPending} 
+                    data-testid="button-submit"
+                  >
+                    {isEditMode
+                      ? updateMutation.isPending
+                        ? "Saving..."
+                        : "Save Changes"
+                      : createMutation.isPending
+                        ? "Adding..."
+                        : "Add Product"}
                   </Button>
                 </div>
               </form>
@@ -335,7 +413,12 @@ export default function Inventory() {
                     <TableCell>£{(item.quantity * parseFloat(item.unitPrice.toString())).toFixed(2)}</TableCell>
                     <TableCell className="text-right">
                       <div className="flex items-center justify-end gap-2">
-                        <Button variant="ghost" size="icon" data-testid={`button-edit-${item.id}`}>
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          onClick={() => handleEdit(item)}
+                          data-testid={`button-edit-${item.id}`}
+                        >
                           <Edit className="h-4 w-4" />
                         </Button>
                         <Button
