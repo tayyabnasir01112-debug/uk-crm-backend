@@ -35,21 +35,34 @@ const normalizeBase = (base: string) => {
   return base.replace(/\/$/, "");
 };
 
+const normalizePathForBase = (base: string, path: string) => {
+  if (base === "/api") {
+    if (path === "api") {
+      return "";
+    }
+    if (path.startsWith("api/")) {
+      return path.slice(4);
+    }
+  }
+  return path;
+};
+
 // Helper function to build full API URLs
 export const apiUrl = (path: string): string => {
   const cleanPath = path.startsWith("/") ? path.slice(1) : path;
   const base = normalizeBase(API_BASE_URL);
+  const normalizedPath = normalizePathForBase(base, cleanPath);
 
   // When using a relative base ("/api"), keep it relative so requests stay same-origin.
   if (base === "/api") {
-    return `${base}/${cleanPath}`;
+    return normalizedPath ? `${base}/${normalizedPath}` : base;
   }
 
   if (base === "/") {
-    return `/${cleanPath}`;
+    return normalizedPath ? `/${normalizedPath}` : "/";
   }
 
-  return `${base}/${cleanPath}`;
+  return normalizedPath ? `${base}/${normalizedPath}` : base;
 };
 
 // Debug helper
