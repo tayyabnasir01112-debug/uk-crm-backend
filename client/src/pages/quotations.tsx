@@ -23,7 +23,7 @@ import { z } from "zod";
 import { Plus, Search, Eye, Download, Edit, Trash2, X, FileCheck, TruckIcon } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { isUnauthorizedError } from "@/lib/authUtils";
-import { getAPIBaseURL } from "@/lib/api";
+import { apiUrl } from "@/lib/api";
 import type { Quotation, InventoryItem } from "@shared/schema";
 import { format } from "date-fns";
 import { useLocation } from "wouter";
@@ -304,14 +304,16 @@ export default function Quotations() {
 
   const handleDownload = async (quotation: Quotation, format: 'pdf' | 'word' = 'pdf') => {
     try {
-      const url = new URL(`/api/quotations/${quotation.id}/download`, getAPIBaseURL());
-      url.searchParams.set('format', format);
-      url.searchParams.set('includeHeader', includeHeader.toString());
-      url.searchParams.set('includeFooter', includeFooter.toString());
-      url.searchParams.set('includePayment', includePayment.toString());
-      url.searchParams.set('includeSignature', includeSignature.toString());
+      const params = new URLSearchParams({
+        format,
+        includeHeader: includeHeader.toString(),
+        includeFooter: includeFooter.toString(),
+        includePayment: includePayment.toString(),
+        includeSignature: includeSignature.toString(),
+      });
+      const url = `${apiUrl(`/api/quotations/${quotation.id}/download`)}?${params.toString()}`;
 
-      const response = await fetch(url.toString(), {
+      const response = await fetch(url, {
         method: 'GET',
         credentials: 'include',
       });
