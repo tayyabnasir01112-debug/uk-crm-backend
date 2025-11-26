@@ -14,6 +14,47 @@ import {
 } from "@shared/schema";
 import { generatePDF, generateWord } from "./documentGenerator";
 
+function normalizeQuotationFinancials(data: any) {
+  if (!Array.isArray(data.items)) {
+    return data;
+  }
+
+  const normalizedItems = data.items.map((item: any) => {
+    const quantity =
+      typeof item.quantity === "number"
+        ? item.quantity
+        : parseFloat(item.quantity ?? "0") || 0;
+    const unitPrice =
+      typeof item.unitPrice === "number"
+        ? item.unitPrice
+        : parseFloat(item.unitPrice ?? "0") || 0;
+    const total = quantity * unitPrice;
+    return {
+      ...item,
+      quantity,
+      unitPrice,
+      total: Number.isFinite(total) ? total : 0,
+    };
+  });
+
+  const subtotalValue = normalizedItems.reduce(
+    (sum: number, item: any) => sum + (Number(item.total) || 0),
+    0,
+  );
+  const taxRateValue = parseFloat(data.taxRate?.toString() || "20");
+  const taxAmountValue = subtotalValue * (taxRateValue / 100);
+  const totalValue = subtotalValue + taxAmountValue;
+
+  return {
+    ...data,
+    items: normalizedItems,
+    subtotal: subtotalValue.toFixed(2),
+    taxRate: taxRateValue.toFixed(2),
+    taxAmount: taxAmountValue.toFixed(2),
+    total: totalValue.toFixed(2),
+  };
+}
+
 export async function registerRoutes(app: Express): Promise<Server> {
   await setupAuth(app);
 
@@ -113,10 +154,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/quotations', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.id;
-      const validatedData = insertQuotationSchema.parse({
+      let validatedData = insertQuotationSchema.parse({
         ...req.body,
         userId,
       });
+      validatedData = normalizeQuotationFinancials(validatedData);
       
       // Generate base document number if not provided (extract number from quotationNumber)
       let baseDocNumber = validatedData.baseDocumentNumber;
@@ -151,7 +193,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.put('/api/quotations/:id', isAuthenticated, async (req: any, res) => {
     try {
-      const validatedData = insertQuotationSchema.partial().parse(req.body);
+      let validatedData = insertQuotationSchema.partial().parse(req.body);
+      if (validatedData.items) {
+        validatedData = normalizeQuotationFinancials(validatedData);
+      }
       const quotation = await storage.updateQuotation(req.params.id, validatedData);
       if (!quotation) {
         return res.status(404).json({ message: "Quotation not found" });
@@ -345,13 +390,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (invoice && invoice.userId === userId) {
           // Try to find source quotation
           if (invoice.sourceQuotationId) {
-            const formattedDate = updateData.paidAt.toLocaleDateString('en-GB', { 
-              day: 'numeric', 
-              month: 'long', 
-              year: 'numeric' 
+            const formattedDate = updateData.paidAt.toLocaleDateString('en-GB', {
+              day: '2-digit',
+              month: 'short',
+              year: '2-digit',
             });
             await storage.updateQuotation(invoice.sourceQuotationId, {
-              status: `invoice generated and paid on: ${formattedDate}`
+              status: `paid ${formattedDate}`,
             });
           }
         }
