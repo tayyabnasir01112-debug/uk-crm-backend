@@ -1,9 +1,27 @@
 import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { ArrowLeft, Home } from "lucide-react";
 import { Link } from "wouter";
+import { SeoHead } from "@/components/seo-head";
 
 export default function Terms() {
   return (
     <div className="min-h-screen bg-background py-20">
+      <SeoHead
+        title="Terms of Service | CRM Launch UK"
+        description="Review the CRM Launch Terms of Service covering subscriptions, cancellations, acceptable use, and legal guidelines for UK businesses."
+        canonicalPath="/terms"
+      />
+
+      <div className="container max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 pb-6">
+        <Button variant="ghost" className="px-0 text-primary hover:text-primary" asChild>
+          <Link href="/" className="flex items-center gap-2">
+            <ArrowLeft className="h-4 w-4" />
+            <Home className="h-4 w-4" />
+            Back to Home
+          </Link>
+        </Button>
+      </div>
       <div className="container max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center mb-12">
           <h1 className="text-4xl font-bold mb-4">Terms of Service</h1>

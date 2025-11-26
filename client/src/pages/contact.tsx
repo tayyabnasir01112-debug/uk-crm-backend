@@ -4,8 +4,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Mail, Phone, MapPin, Send, CheckCircle2 } from "lucide-react";
+import { Mail, Phone, MapPin, Send, CheckCircle2, ArrowLeft, Home } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { Link } from "wouter";
+import { SeoHead } from "@/components/seo-head";
 
 export default function Contact() {
   const { toast } = useToast();
@@ -39,6 +41,21 @@ export default function Contact() {
 
   return (
     <div className="min-h-screen bg-background">
+      <SeoHead
+        title="Contact CRM Launch | Talk to Our UK Support Team"
+        description="Get in touch with CRM Launch for product questions, onboarding help, or partnership enquiries. We respond within 24 hours."
+        canonicalPath="/contact"
+      />
+
+      <div className="container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6">
+        <Button variant="ghost" className="px-0 text-primary hover:text-primary" asChild>
+          <Link href="/" className="flex items-center gap-2">
+            <ArrowLeft className="h-4 w-4" />
+            <Home className="h-4 w-4" />
+            Back to Home
+          </Link>
+        </Button>
+      </div>
       {/* Hero Section */}
       <section className="bg-gradient-to-b from-primary/10 to-background py-20">
         <div className="container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">

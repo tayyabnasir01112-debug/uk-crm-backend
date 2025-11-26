@@ -3,20 +3,24 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Link } from "wouter";
-import { 
-  FileText, 
-  Package, 
-  Users, 
-  BarChart3, 
-  FileCheck, 
+import {
+  FileText,
+  Package,
+  Users,
+  BarChart3,
+  FileCheck,
   TruckIcon,
   Check,
-  ArrowRight
+  ArrowRight,
+  Sparkles,
+  ClipboardCheck,
+  Settings,
 } from "lucide-react";
 import heroImage from "@assets/generated_images/office_workspace_hero_background.png";
 import dashboardImage from "@assets/generated_images/crm_dashboard_mockup.png";
 import invoiceImage from "@assets/generated_images/invoice_template_preview.png";
 import inventoryImage from "@assets/generated_images/inventory_management_illustration.png";
+import { SeoHead } from "@/components/seo-head";
 
 export default function Landing() {
   const [heroLoaded, setHeroLoaded] = useState(false);
@@ -91,8 +95,72 @@ export default function Landing() {
     "Email support"
   ];
 
+  const stats = [
+    { value: "6+", label: "core business modules" },
+    { value: "£20/mo", label: "flat, transparent pricing" },
+    { value: "7 days", label: "free trial without card" },
+    { value: "<24 hrs", label: "average support response" },
+  ];
+
+  const howItWorks = [
+    {
+      icon: Sparkles,
+      title: "Create your workspace",
+      description: "Start a free trial in minutes, add your business logo, colours, and tax details.",
+    },
+    {
+      icon: Settings,
+      title: "Import your inventory & team",
+      description: "Upload items, employees, and customers or enter them manually. Stock levels sync automatically.",
+    },
+    {
+      icon: ClipboardCheck,
+      title: "Send professional documents",
+      description: "Generate branded quotations, invoices, and delivery notes that look great on desktop and mobile.",
+    },
+  ];
+
+  const industries = [
+    {
+      title: "Trades & Home Services",
+      description: "Electricians, plumbers, decorators, and installers who need branded paperwork on-site.",
+    },
+    {
+      title: "Retail & E‑commerce",
+      description: "Boutiques, wholesalers, and Amazon/eBay sellers that need synced inventory and delivery notes.",
+    },
+    {
+      title: "Professional Services",
+      description: "Agencies, consultants, and freelancers who want to impress clients with professional docs.",
+    },
+  ];
+
+  const structuredData = {
+    "@context": "https://schema.org",
+    "@type": "LocalBusiness",
+    name: "CRM Launch",
+    description: "Professional CRM software for UK small businesses",
+    url: "https://crmlaunch.co.uk",
+    email: "help@crmlaunch.co.uk",
+    address: {
+      "@type": "PostalAddress",
+      addressCountry: "GB",
+    },
+    priceRange: "£20/month",
+    areaServed: {
+      "@type": "Country",
+      name: "United Kingdom",
+    },
+  };
+
   return (
     <div className="min-h-screen bg-background">
+      <SeoHead
+        title="CRM Launch | UK Small Business CRM with Invoices, Quotes & Inventory"
+        description="All-in-one CRM for UK SMEs. Create professional quotations, invoices, delivery challans, manage inventory & HR — just £20/month with a 7-day free trial."
+        canonicalPath="/"
+        structuredData={structuredData}
+      />
       {/* Hero Section */}
       <section className="relative min-h-screen flex items-center justify-center overflow-hidden">
         {/* Hero Background with Dark Overlay */}
@@ -161,28 +229,20 @@ export default function Landing() {
             <p className="text-white/80 text-sm">
               ✓ No credit card required • ✓ Cancel anytime • ✓ UK-focused features
             </p>
-            
-            {/* Structured Data for Local Business */}
-            <script type="application/ld+json" dangerouslySetInnerHTML={{
-              __html: JSON.stringify({
-                "@context": "https://schema.org",
-                "@type": "LocalBusiness",
-                "name": "CRM Launch",
-                "description": "Professional CRM software for UK small businesses",
-                "url": "https://crmlaunch.co.uk",
-                "telephone": "+44",
-                "email": "help@crmlaunch.co.uk",
-                "address": {
-                  "@type": "PostalAddress",
-                  "addressCountry": "GB"
-                },
-                "priceRange": "£20/month",
-                "areaServed": {
-                  "@type": "Country",
-                  "name": "United Kingdom"
-                }
-              })
-            }} />
+          </div>
+        </div>
+      </section>
+
+      {/* Proof Section */}
+      <section className="bg-card py-12 border-b border-border">
+        <div className="container max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-6 text-center">
+            {stats.map((stat, index) => (
+              <div key={index} className="space-y-2">
+                <p className="text-3xl font-bold text-primary">{stat.value}</p>
+                <p className="text-sm text-muted-foreground uppercase tracking-wide">{stat.label}</p>
+              </div>
+            ))}
           </div>
         </div>
       </section>
@@ -213,6 +273,30 @@ export default function Landing() {
                     {feature.description}
                   </p>
                 </div>
+              </Card>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* How It Works */}
+      <section id="how-it-works" className="py-20 bg-card border-y border-border">
+        <div className="container max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-12">
+            <h2 className="text-4xl font-bold mb-4">How CRM Launch Works</h2>
+            <p className="text-xl text-muted-foreground">
+              Three simple steps to send professional documents and keep your operations in sync.
+            </p>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            {howItWorks.map((step, index) => (
+              <Card key={index} className="p-8 text-center">
+                <div className="w-14 h-14 mx-auto rounded-full bg-primary/10 flex items-center justify-center mb-4">
+                  <step.icon className="h-6 w-6 text-primary" />
+                </div>
+                <p className="text-sm uppercase tracking-wide text-muted-foreground mb-2">Step {index + 1}</p>
+                <h3 className="text-xl font-semibold mb-3">{step.title}</h3>
+                <p className="text-muted-foreground">{step.description}</p>
               </Card>
             ))}
           </div>
@@ -255,6 +339,26 @@ export default function Landing() {
               </div>
             </div>
           ))}
+        </div>
+      </section>
+
+      {/* Industries */}
+      <section className="py-20 bg-background border-t border-border">
+        <div className="container max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-12">
+            <h2 className="text-4xl font-bold mb-4">Built for UK Small Businesses</h2>
+            <p className="text-xl text-muted-foreground">
+              Whether you sell services, products, or both — CRM Launch helps you look professional and stay organised.
+            </p>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            {industries.map((industry, index) => (
+              <Card key={index} className="p-6">
+                <h3 className="text-2xl font-semibold mb-3">{industry.title}</h3>
+                <p className="text-muted-foreground">{industry.description}</p>
+              </Card>
+            ))}
+          </div>
         </div>
       </section>
 

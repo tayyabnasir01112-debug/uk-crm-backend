@@ -1,8 +1,8 @@
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { FileText, FileCheck, TruckIcon, Package, Users, BarChart3, Check } from "lucide-react";
+import { FileText, FileCheck, TruckIcon, Package, Users, BarChart3, Check, ArrowLeft, Home, ArrowRight } from "lucide-react";
 import { Link } from "wouter";
-import { ArrowRight } from "lucide-react";
+import { SeoHead } from "@/components/seo-head";
 
 export default function About() {
   const features = [
@@ -40,6 +40,21 @@ export default function About() {
 
   return (
     <div className="min-h-screen bg-background">
+      <SeoHead
+        title="About CRM Launch | Built for UK Small Businesses"
+        description="Learn how CRM Launch helps UK small businesses manage quotations, invoices, inventory, HR, and delivery challans in one affordable CRM."
+        canonicalPath="/about"
+      />
+
+      <div className="container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6">
+        <Button variant="ghost" className="px-0 text-primary hover:text-primary" asChild>
+          <Link href="/" className="flex items-center gap-2">
+            <ArrowLeft className="h-4 w-4" />
+            <Home className="h-4 w-4" />
+            Back to Home
+          </Link>
+        </Button>
+      </div>
       {/* Hero Section */}
       <section className="bg-gradient-to-b from-primary/10 to-background py-20">
         <div className="container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
