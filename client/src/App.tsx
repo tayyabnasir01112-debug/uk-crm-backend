@@ -11,6 +11,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useQuery } from "@tanstack/react-query";
 import type { Business } from "@shared/schema";
 import { trackPageview } from "@/lib/analytics";
+import { apiUrl } from "@/lib/api";
 
 import Landing from "@/pages/landing";
 import Login from "@/pages/login";
@@ -48,7 +49,7 @@ function AuthenticatedLayout({ children }: { children: React.ReactNode }) {
               size="sm"
               onClick={async () => {
                 try {
-                  await fetch("https://uk-crm-backend.onrender.com/api/logout", {
+                  await fetch(apiUrl("/api/logout"), {
                     method: "POST",
                     credentials: "include",
                   });
@@ -72,7 +73,7 @@ function AuthenticatedLayout({ children }: { children: React.ReactNode }) {
 }
 
 function Router() {
-  const [location] = useLocation();
+  const [location, setLocation] = useLocation();
   const { isAuthenticated, isLoading } = useAuth();
   const { data: business, isLoading: businessLoading } = useQuery<Business>({
     queryKey: ["/api/business"],
@@ -82,6 +83,12 @@ function Router() {
   useEffect(() => {
     trackPageview(location);
   }, [location]);
+
+  useEffect(() => {
+    if (isAuthenticated && location === "/") {
+      setLocation("/dashboard");
+    }
+  }, [isAuthenticated, location, setLocation]);
 
   if (isLoading || (isAuthenticated && businessLoading)) {
     return (
@@ -123,7 +130,7 @@ function Router() {
   return (
     <AuthenticatedLayout>
       <Switch>
-        <Route path="/" component={Dashboard} />
+        <Route path="/dashboard" component={Dashboard} />
         <Route path="/quotations" component={Quotations} />
         <Route path="/invoices" component={Invoices} />
         <Route path="/delivery-challans" component={DeliveryChallans} />

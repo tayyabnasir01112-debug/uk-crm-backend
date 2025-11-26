@@ -9,7 +9,6 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarHeader,
-  SidebarFooter,
 } from "@/components/ui/sidebar";
 import { 
   LayoutDashboard, 
@@ -26,7 +25,6 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { Subscription } from "@shared/schema";
-import { apiRequest } from "@/lib/queryClient";
 import { useState } from "react";
 
 export function AppSidebar() {
@@ -44,12 +42,9 @@ export function AppSidebar() {
     setIsLoggingOut(true);
     try {
       // Use fetch directly to avoid any routing issues
-      const response = await fetch("https://uk-crm-backend.onrender.com/api/logout", {
+      await fetch("/api/logout", {
         method: "POST",
         credentials: "include",
-        headers: {
-          "Content-Type": "application/json",
-        },
       });
       
       // Clear all queries regardless of response
@@ -68,7 +63,7 @@ export function AppSidebar() {
   const menuItems = [
     {
       title: "Dashboard",
-      url: "/",
+      url: "/dashboard",
       icon: LayoutDashboard,
     },
     {

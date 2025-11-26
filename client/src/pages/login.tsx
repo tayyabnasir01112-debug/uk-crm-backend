@@ -109,7 +109,7 @@ export default function Login() {
       if (data.user) {
         await queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
         toast({ title: "Email verified", description: "You're now signed in." });
-        setLocation("/");
+        setLocation("/dashboard");
       } else {
         toast({
           title: "Email verified",
@@ -253,7 +253,7 @@ export default function Login() {
         description: isLogin ? "Logged in successfully" : "Account created successfully",
       });
 
-      setLocation("/");
+      setLocation("/dashboard");
     } catch (error: any) {
       console.error("âŒ Authentication error:", error);
       console.error("Error details:", {
