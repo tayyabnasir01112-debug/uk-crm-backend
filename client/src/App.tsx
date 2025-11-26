@@ -10,7 +10,6 @@ import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
 import { useQuery } from "@tanstack/react-query";
 import type { Business } from "@shared/schema";
-import { trackPageview } from "@/lib/analytics";
 import { apiUrl } from "@/lib/api";
 
 import Landing from "@/pages/landing";
@@ -79,10 +78,6 @@ function Router() {
     queryKey: ["/api/business"],
     enabled: isAuthenticated,
   });
-
-  useEffect(() => {
-    trackPageview(location);
-  }, [location]);
 
   useEffect(() => {
     if (isAuthenticated && location === "/") {

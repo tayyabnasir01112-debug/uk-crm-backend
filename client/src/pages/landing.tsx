@@ -21,6 +21,9 @@ import dashboardImage from "@assets/generated_images/crm_dashboard_mockup.png";
 import invoiceImage from "@assets/generated_images/invoice_template_preview.png";
 import inventoryImage from "@assets/generated_images/inventory_management_illustration.png";
 import { SeoHead } from "@/components/seo-head";
+import { Helmet } from "react-helmet-async";
+
+const GA_MEASUREMENT_ID = "G-HLST81TSF6";
 
 export default function Landing() {
   const [heroLoaded, setHeroLoaded] = useState(false);
@@ -161,6 +164,15 @@ export default function Landing() {
         canonicalPath="/"
         structuredData={structuredData}
       />
+      <Helmet>
+        <script async src={`https://www.googletagmanager.com/gtag/js?id=${GA_MEASUREMENT_ID}`} />
+        <script>{`
+          window.dataLayer = window.dataLayer || [];
+          function gtag(){window.dataLayer.push(arguments);}
+          gtag('js', new Date());
+          gtag('config', '${GA_MEASUREMENT_ID}');
+        `}</script>
+      </Helmet>
       {/* Hero Section */}
       <section className="relative min-h-screen flex items-center justify-center overflow-hidden">
         {/* Hero Background with Dark Overlay */}
