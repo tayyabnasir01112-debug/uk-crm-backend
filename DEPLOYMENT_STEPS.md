@@ -2,16 +2,16 @@
 
 ## Your Setup Details
 
-- **Neon Database**: https://console.neon.tech/app/projects/round-band-21147885
+- **Neon Database**: https://console.neon.tech/app/projects/YOUR_PROJECT_ID
 - **GitHub**: https://github.com/tayyabnasir01112-debug
 - **Backend Repo**: https://github.com/tayyabnasir01112-debug/uk-crm-backend
-- **Netlify**: https://app.netlify.com/teams/tayyabnasirsiddiqui/projects
+- **Netlify**: https://app.netlify.com/
 
 ---
 
 ## Step 1: Get Neon Connection String
 
-1. Go to: https://console.neon.tech/app/projects/round-band-21147885
+1. Go to: https://console.neon.tech/app/projects/YOUR_PROJECT_ID
 2. Click on your project
 3. Look for **"Connection String"** or **"Connection Details"**
 4. Copy the connection string (looks like: `postgresql://user:password@host/database?sslmode=require`)
@@ -113,7 +113,7 @@ Click **"Advanced"** → **"Add Environment Variable"** and add:
 
 ### 5.1 Get Database Connection String
 
-1. Go to: https://console.neon.tech/app/projects/round-band-21147885
+1. Go to: https://console.neon.tech/app/projects/YOUR_PROJECT_ID
 2. Click on your project
 3. Find **"Connection String"** or go to **"Connection Details"**
 4. Copy the connection string
@@ -143,7 +143,7 @@ npm run db:push
 
 ### 6.1 Import Project
 
-1. Go to: https://app.netlify.com/teams/tayyabnasirsiddiqui/projects
+1. Go to: https://app.netlify.com/
 2. Click **"Add new site"** → **"Import an existing project"**
 3. Choose **"Deploy with GitHub"**
 4. Authorize Netlify to access GitHub (if prompted)

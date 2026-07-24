@@ -12,6 +12,8 @@ build/
 
 # Environment variables
 .env
+.env.*
+!.env.example
 .env.local
 .env.development.local
 .env.test.local
@@ -41,6 +43,13 @@ Thumbs.db
 # Misc
 *.log
 .cache
+*.db
+*.sqlite
+*.sqlite3
+*.dump
+*.sql.gz
+backups/
+tmp/
 
 # Local Netlify folder
 .netlify

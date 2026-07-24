@@ -3,7 +3,7 @@
 ## Your Netlify Configuration
 
 ### Step 1: Go to Netlify
-1. Open: https://app.netlify.com/teams/tayyabnasirsiddiqui/projects
+1. Open: https://app.netlify.com/
 2. Make sure you're logged in
 
 ### Step 2: Import Project

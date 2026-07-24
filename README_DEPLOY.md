@@ -64,12 +64,12 @@ I've prepared **EVERYTHING** so you can deploy in just **10 minutes**!
 
 ### Session Secret:
 ```
-8a5a8d7d55b4026d80f4381c11dce4b11c85ef0f3c2b09be3c3a1aed5b3a75bd
+replace-with-a-long-random-secret
 ```
 
 ### Database URL:
 ```
-postgresql://neondb_owner:npg_BNLK1khwEq0M@ep-broad-haze-ab8nmjmg-pooler.eu-west-2.aws.neon.tech/neondb?sslmode=require&channel_binding=require
+postgresql://USER:PASSWORD@HOST:5432/DATABASE
 ```
 
 ---

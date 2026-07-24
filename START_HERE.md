@@ -3,7 +3,7 @@
 ## ✅ What's Already Done
 
 1. ✅ **Environment file created** (.env) with your Neon connection string
-2. ✅ **Session secret generated**: `8a5a8d7d55b4026d80f4381c11dce4b11c85ef0f3c2b09be3c3a1aed5b3a75bd`
+2. ✅ **Session secret generated**: `replace-with-a-long-random-secret`
 3. ✅ **Database tables created** in Neon (migrations completed)
 4. ✅ **All code updated** for deployment
 5. ✅ **CORS configured** for cross-origin requests
@@ -48,8 +48,8 @@ git push -u origin main
 
    | Variable | Value |
    |----------|-------|
-   | `DATABASE_URL` | `postgresql://neondb_owner:npg_BNLK1khwEq0M@ep-broad-haze-ab8nmjmg-pooler.eu-west-2.aws.neon.tech/neondb?sslmode=require&channel_binding=require` |
-   | `SESSION_SECRET` | `8a5a8d7d55b4026d80f4381c11dce4b11c85ef0f3c2b09be3c3a1aed5b3a75bd` |
+   | `DATABASE_URL` | `postgresql://USER:PASSWORD@HOST:5432/DATABASE` |
+   | `SESSION_SECRET` | `replace-with-a-long-random-secret` |
    | `NODE_ENV` | `production` |
    | `PORT` | `10000` |
 
@@ -61,7 +61,7 @@ git push -u origin main
 
 ### Step 3: Deploy Frontend to Netlify (5 minutes)
 
-1. **Go to**: https://app.netlify.com/teams/tayyabnasirsiddiqui/projects
+1. **Go to**: https://app.netlify.com/
 2. **Click**: "Add new site" → "Import an existing project"
 3. **Choose**: "Deploy with GitHub"
 4. **Select**: "uk-crm-backend" repository
@@ -103,12 +103,12 @@ git push -u origin main
 
 ### Your Session Secret (For Render)
 ```
-8a5a8d7d55b4026d80f4381c11dce4b11c85ef0f3c2b09be3c3a1aed5b3a75bd
+replace-with-a-long-random-secret
 ```
 
 ### Your Neon Connection String
 ```
-postgresql://neondb_owner:npg_BNLK1khwEq0M@ep-broad-haze-ab8nmjmg-pooler.eu-west-2.aws.neon.tech/neondb?sslmode=require&channel_binding=require
+postgresql://USER:PASSWORD@HOST:5432/DATABASE
 ```
 
 ### Render Environment Variables Needed

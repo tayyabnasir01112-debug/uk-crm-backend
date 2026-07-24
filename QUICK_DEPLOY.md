@@ -2,16 +2,16 @@
 
 ## Your Accounts
 
-- **Neon**: https://console.neon.tech/app/projects/round-band-21147885
+- **Neon**: https://console.neon.tech/app/projects/YOUR_PROJECT_ID
 - **GitHub**: https://github.com/tayyabnasir01112-debug
 - **Backend Repo**: https://github.com/tayyabnasir01112-debug/uk-crm-backend
-- **Netlify**: https://app.netlify.com/teams/tayyabnasirsiddiqui/projects
+- **Netlify**: https://app.netlify.com/
 
 ---
 
 ## Step 1: Get Neon Connection String
 
-1. Go to: https://console.neon.tech/app/projects/round-band-21147885
+1. Go to: https://console.neon.tech/app/projects/YOUR_PROJECT_ID
 2. Click on your project
 3. Find **"Connection String"** or **"Connection Details"**
 4. Copy the connection string
@@ -145,7 +145,7 @@ npm run db:push
 
 ### 6.1 Import Project
 
-1. Go to: https://app.netlify.com/teams/tayyabnasirsiddiqui/projects
+1. Go to: https://app.netlify.com/
 2. Click **"Add new site"** → **"Import an existing project"**
 3. Choose **"Deploy with GitHub"**
 4. Authorize Netlify (if prompted)
@@ -253,7 +253,7 @@ Click **"Show advanced"** → **"New variable"**:
 
 - **Backend**: `https://uk-crm-backend.onrender.com` (or your Render URL)
 - **Frontend**: `https://random-name-12345.netlify.app` (or your Netlify URL)
-- **Neon**: https://console.neon.tech/app/projects/round-band-21147885
+- **Neon**: https://console.neon.tech/app/projects/YOUR_PROJECT_ID
 
 ---
 

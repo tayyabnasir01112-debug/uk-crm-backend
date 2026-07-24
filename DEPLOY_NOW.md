@@ -2,7 +2,7 @@
 
 ## Your Neon Connection String (Already Set)
 ```
-postgresql://neondb_owner:npg_BNLK1khwEq0M@ep-broad-haze-ab8nmjmg-pooler.eu-west-2.aws.neon.tech/neondb?sslmode=require&channel_binding=require
+postgresql://USER:PASSWORD@HOST:5432/DATABASE
 ```
 
 ---
@@ -30,7 +30,7 @@ node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 
 2. Create `.env` file with:
 ```
-DATABASE_URL=postgresql://neondb_owner:npg_BNLK1khwEq0M@ep-broad-haze-ab8nmjmg-pooler.eu-west-2.aws.neon.tech/neondb?sslmode=require&channel_binding=require
+DATABASE_URL=postgresql://USER:PASSWORD@HOST:5432/DATABASE
 SESSION_SECRET=your-generated-secret-here
 NODE_ENV=development
 PORT=5000
@@ -111,7 +111,7 @@ Click **"Advanced"** → **"Add Environment Variable"**:
 
 1. **DATABASE_URL**
    ```
-   postgresql://neondb_owner:npg_BNLK1khwEq0M@ep-broad-haze-ab8nmjmg-pooler.eu-west-2.aws.neon.tech/neondb?sslmode=require&channel_binding=require
+   postgresql://USER:PASSWORD@HOST:5432/DATABASE
    ```
 
 2. **SESSION_SECRET**
@@ -142,7 +142,7 @@ Click **"Advanced"** → **"Add Environment Variable"**:
 
 ### 5.1 Import Project
 
-1. Go to: https://app.netlify.com/teams/tayyabnasirsiddiqui/projects
+1. Go to: https://app.netlify.com/
 2. Click **"Add new site"** → **"Import an existing project"**
 3. Choose **"Deploy with GitHub"**
 4. Authorize Netlify (if prompted)
@@ -216,7 +216,7 @@ Click **"Show advanced"** → **"New variable"**:
 
 ## 📋 Your URLs (Save These)
 
-- **Neon**: https://console.neon.tech/app/projects/round-band-21147885
+- **Neon**: https://console.neon.tech/app/projects/YOUR_PROJECT_ID
 - **GitHub**: https://github.com/tayyabnasir01112-debug/uk-crm-backend
 - **Render Backend**: `https://your-service.onrender.com` (after deployment)
 - **Netlify Frontend**: `https://your-site.netlify.app` (after deployment)

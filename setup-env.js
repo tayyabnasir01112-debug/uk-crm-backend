@@ -1,13 +1,12 @@
-// Script to generate session secret and create .env file
+// Script to generate a local development .env file with safe placeholders.
 import crypto from 'crypto';
 import fs from 'fs';
 
 const sessionSecret = crypto.randomBytes(32).toString('hex');
-// Your Neon connection string
-const neonConnectionString = "postgresql://neondb_owner:npg_BNLK1khwEq0M@ep-broad-haze-ab8nmjmg-pooler.eu-west-2.aws.neon.tech/neondb?sslmode=require&channel_binding=require";
+const databaseUrl = process.env.DATABASE_URL || 'postgresql://USER:PASSWORD@HOST:5432/DATABASE';
 
 const envContent = `# Database Configuration
-DATABASE_URL=${neonConnectionString}
+DATABASE_URL=${databaseUrl}
 
 # Session Secret (auto-generated)
 SESSION_SECRET=${sessionSecret}
@@ -21,12 +20,12 @@ PORT=5000
 
 fs.writeFileSync('.env', envContent);
 
-console.log('✅ .env file created successfully!');
-console.log('\n📋 Your Session Secret (save this for Render):');
+console.log('.env file created successfully.');
+console.log('\nGenerated local SESSION_SECRET:');
 console.log(sessionSecret);
-console.log('\n💾 Your .env file has been created with:');
-console.log('- DATABASE_URL (from Neon)');
+console.log('\nYour .env file has been created with:');
+console.log('- DATABASE_URL placeholder or value from the current process environment');
 console.log('- SESSION_SECRET (auto-generated)');
 console.log('- NODE_ENV=development');
 console.log('- PORT=5000');
-
+console.log('\nReplace DATABASE_URL before running database migrations. Never commit .env.');

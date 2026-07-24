@@ -15,7 +15,7 @@
 **Save this for Render environment variables:**
 
 ```
-8a5a8d7d55b4026d80f4381c11dce4b11c85ef0f3c2b09be3c3a1aed5b3a75bd
+replace-with-a-long-random-secret
 ```
 
 ---
@@ -69,8 +69,8 @@ git push -u origin main
 
    | Variable | Value |
    |----------|-------|
-   | `DATABASE_URL` | `postgresql://neondb_owner:npg_BNLK1khwEq0M@ep-broad-haze-ab8nmjmg-pooler.eu-west-2.aws.neon.tech/neondb?sslmode=require&channel_binding=require` |
-   | `SESSION_SECRET` | `8a5a8d7d55b4026d80f4381c11dce4b11c85ef0f3c2b09be3c3a1aed5b3a75bd` |
+   | `DATABASE_URL` | `postgresql://USER:PASSWORD@HOST:5432/DATABASE` |
+   | `SESSION_SECRET` | `replace-with-a-long-random-secret` |
    | `NODE_ENV` | `production` |
    | `PORT` | `10000` |
 
@@ -82,7 +82,7 @@ git push -u origin main
 
 ### Step 4: Deploy to Netlify (5 minutes)
 
-1. Go to: https://app.netlify.com/teams/tayyabnasirsiddiqui/projects
+1. Go to: https://app.netlify.com/
 2. Click **"Add new site"** → **"Import an existing project"**
 3. Choose **"Deploy with GitHub"**
 4. Select **"uk-crm-backend"** repository
@@ -133,7 +133,7 @@ Visit your Netlify URL and test:
 
 ### Render Environment Variables
 - `DATABASE_URL`: Your Neon connection string
-- `SESSION_SECRET`: `8a5a8d7d55b4026d80f4381c11dce4b11c85ef0f3c2b09be3c3a1aed5b3a75bd`
+- `SESSION_SECRET`: `replace-with-a-long-random-secret`
 - `NODE_ENV`: `production`
 - `PORT`: `10000`
 - `FRONTEND_URL`: Your Netlify URL (add after Step 4)
@@ -147,7 +147,7 @@ Visit your Netlify URL and test:
 
 - **Render Logs**: Dashboard → Service → Logs
 - **Netlify Logs**: Site → Deploys → Click deploy → Functions/Logs
-- **Database**: https://console.neon.tech/app/projects/round-band-21147885
+- **Database**: https://console.neon.tech/app/projects/YOUR_PROJECT_ID
 
 ---
 

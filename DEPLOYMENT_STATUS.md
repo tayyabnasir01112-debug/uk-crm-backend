@@ -30,8 +30,8 @@ Since Render CLI isn't easily available on Windows, we need to deploy via web in
 - Plan: `Free`
 
 **Environment Variables:**
-- `DATABASE_URL`: `postgresql://neondb_owner:npg_BNLK1khwEq0M@ep-broad-haze-ab8nmjmg-pooler.eu-west-2.aws.neon.tech/neondb?sslmode=require&channel_binding=require`
-- `SESSION_SECRET`: `8a5a8d7d55b4026d80f4381c11dce4b11c85ef0f3c2b09be3c3a1aed5b3a75bd`
+- `DATABASE_URL`: `postgresql://USER:PASSWORD@HOST:5432/DATABASE`
+- `SESSION_SECRET`: `replace-with-a-long-random-secret`
 - `NODE_ENV`: `production`
 - `PORT`: `10000`
 

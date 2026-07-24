@@ -1,90 +1,57 @@
 # UK Small Business CRM
 
-A comprehensive CRM platform designed specifically for small businesses in the UK, featuring quotations, invoices, delivery challans, inventory management, and HR modules.
+A CRM application for small businesses, with modules for customers, quotations, invoices, delivery challans, inventory, employees, and reporting.
 
-## 🚀 Quick Start
+## Tech Stack
+
+- Frontend: React, TypeScript, Vite, Tailwind CSS, Radix UI
+- Backend: Node.js, Express, TypeScript
+- Database: PostgreSQL with Drizzle ORM
+- Authentication: Local email/password authentication with bcrypt
+
+## Quick Start
 
 ### Prerequisites
 
 - Node.js 20+
-- PostgreSQL database (Neon, Supabase, or local)
+- PostgreSQL database
 - Git
 
 ### Installation
 
 ```bash
-# Install dependencies
 npm install
-
-# Set up environment variables
 cp .env.example .env
-# Edit .env with your database connection string
-
-# Run database migrations
 npm run db:push
-
-# Start development server
 npm run dev
 ```
 
-## 📦 Tech Stack
+Edit `.env` before running the app. Never commit real credentials.
 
-- **Frontend**: React + TypeScript + Vite
-- **Backend**: Express.js + Node.js
-- **Database**: PostgreSQL (Drizzle ORM)
-- **Authentication**: Local email/password (bcrypt)
-- **UI**: Radix UI + Tailwind CSS
+## Environment Variables
 
-## 🌐 Deployment
-
-### Free Hosting Setup
-
-This application is configured for free hosting on:
-- **Frontend**: Netlify (free)
-- **Backend**: Render (free)
-- **Database**: Neon (free tier: 0.5GB)
-
-See `DEPLOYMENT_STEPS.md` for complete deployment instructions.
-
-## 📚 Documentation
-
-- `DEPLOYMENT_STEPS.md` - Step-by-step deployment guide
-- `NETLIFY_DEPLOYMENT.md` - Detailed Netlify deployment
-- `FREE_NETLIFY_DATABASE.md` - Free database options
-- `FREE_SETUP_SUMMARY.md` - Quick reference
-- `MIGRATION_GUIDE.md` - Migration from other platforms
-
-## 🔧 Environment Variables
-
-### Required
+Required:
 
 - `DATABASE_URL` - PostgreSQL connection string
-- `SESSION_SECRET` - Random secret for session encryption
+- `SESSION_SECRET` - Long random secret used for session encryption
 
-### Optional
+Optional:
 
-- `NODE_ENV` - Environment (development/production)
-- `PORT` - Server port (default: 5000)
-- `FRONTEND_URL` - Frontend URL for CORS (production)
-- `VITE_API_URL` - Backend API URL (frontend)
+- `NODE_ENV` - `development` or `production`
+- `PORT` - Server port, defaults to `5000`
+- `FRONTEND_URL` - Allowed frontend origin for production CORS
+- `VITE_API_URL` - Backend API URL used by the frontend
 
-## 📝 Features
+## Deployment
 
-- ✅ User authentication (email/password)
-- ✅ Business onboarding
-- ✅ Customer management
-- ✅ Inventory management
-- ✅ Quotations
-- ✅ Invoices
-- ✅ Delivery challans
-- ✅ Employee management
-- ✅ Reports and analytics
+The app can be deployed with a hosted PostgreSQL provider plus a Node-compatible web host. Deployment guides in this repository use placeholders only. Add real values through your hosting provider's secret/environment-variable UI.
 
-## 🤝 Contributing
+## Security
 
-This is a private project. For issues or questions, please contact the maintainer.
+This repository must not contain real database URLs, session secrets, API keys, SMTP credentials, or deployment tokens. If a credential is ever committed, rotate it immediately even if the file is later edited.
 
-## 📄 License
+See [SECURITY.md](SECURITY.md) for reporting and handling guidance.
+
+## License
 
 MIT
-

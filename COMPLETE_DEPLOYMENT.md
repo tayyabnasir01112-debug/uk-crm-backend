@@ -88,11 +88,11 @@ Click **"Advanced"** at the bottom, then click **"Add Environment Variable"** fo
 
 **Variable 1:**
 - **Key**: `DATABASE_URL`
-- **Value**: `postgresql://neondb_owner:npg_BNLK1khwEq0M@ep-broad-haze-ab8nmjmg-pooler.eu-west-2.aws.neon.tech/neondb?sslmode=require&channel_binding=require`
+- **Value**: `postgresql://USER:PASSWORD@HOST:5432/DATABASE`
 
 **Variable 2:**
 - **Key**: `SESSION_SECRET`
-- **Value**: `8a5a8d7d55b4026d80f4381c11dce4b11c85ef0f3c2b09be3c3a1aed5b3a75bd`
+- **Value**: `replace-with-a-long-random-secret`
 
 **Variable 3:**
 - **Key**: `NODE_ENV`
@@ -116,7 +116,7 @@ Click **"Advanced"** at the bottom, then click **"Add Environment Variable"** fo
 
 ### 3.1 Go to Netlify Dashboard
 
-1. Open: https://app.netlify.com/teams/tayyabnasirsiddiqui/projects
+1. Open: https://app.netlify.com/
 2. Click **"Add new site"** button (top right)
 3. Select **"Import an existing project"**
 
@@ -215,12 +215,12 @@ dist/public
 
 **DATABASE_URL:**
 ```
-postgresql://neondb_owner:npg_BNLK1khwEq0M@ep-broad-haze-ab8nmjmg-pooler.eu-west-2.aws.neon.tech/neondb?sslmode=require&channel_binding=require
+postgresql://USER:PASSWORD@HOST:5432/DATABASE
 ```
 
 **SESSION_SECRET:**
 ```
-8a5a8d7d55b4026d80f4381c11dce4b11c85ef0f3c2b09be3c3a1aed5b3a75bd
+replace-with-a-long-random-secret
 ```
 
 **NODE_ENV:**

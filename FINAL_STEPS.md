@@ -57,7 +57,7 @@ Your CRM is now fully deployed and live!
 ### Your URLs:
 - **Netlify**: https://uk-crm-frontend.netlify.app
 - **Render**: https://uk-crm-backend.onrender.com
-- **Neon**: https://console.neon.tech/app/projects/round-band-21147885
+- **Neon**: https://console.neon.tech/app/projects/YOUR_PROJECT_ID
 
 ### Environment Variables Set:
 - ✅ Netlify: `VITE_API_URL` = `https://uk-crm-backend.onrender.com`

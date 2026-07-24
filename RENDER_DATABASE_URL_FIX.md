@@ -8,7 +8,7 @@ The backend is getting the literal string `'DATABASE_URL'` instead of your actua
 
 ### Step 1: Get Your Neon Connection String
 
-1. Go to: https://console.neon.tech/app/projects/round-band-21147885
+1. Go to: https://console.neon.tech/app/projects/YOUR_PROJECT_ID
 2. Click on your project
 3. Click **"Connection Details"** or **"Connection String"**
 4. Copy the connection string (should look like: `postgresql://user:password@host/database?sslmode=require`)

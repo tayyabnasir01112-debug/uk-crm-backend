@@ -29,7 +29,7 @@
   - [ ] Plan: Free
 - [ ] Added environment variables:
   - [ ] DATABASE_URL (Neon connection string)
-  - [ ] SESSION_SECRET (`8a5a8d7d55b4026d80f4381c11dce4b11c85ef0f3c2b09be3c3a1aed5b3a75bd`)
+  - [ ] SESSION_SECRET (`replace-with-a-long-random-secret`)
   - [ ] NODE_ENV (`production`)
   - [ ] PORT (`10000`)
 - [ ] Service deployed successfully
@@ -85,7 +85,7 @@ Once all items are checked, your CRM is live! 🚀
 
 ## 📋 Your URLs (Save These)
 
-- **Neon Dashboard**: https://console.neon.tech/app/projects/round-band-21147885
+- **Neon Dashboard**: https://console.neon.tech/app/projects/YOUR_PROJECT_ID
 - **GitHub Repo**: https://github.com/tayyabnasir01112-debug/uk-crm-backend
 - **Render Backend**: `https://your-service.onrender.com`
 - **Netlify Frontend**: `https://your-site.netlify.app`

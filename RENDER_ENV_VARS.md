@@ -6,7 +6,7 @@ Copy these exact values into Render dashboard:
 
 ### 1. DATABASE_URL
 ```
-postgresql://neondb_owner:npg_BNLK1khwEq0M@ep-broad-haze-ab8nmjmg-pooler.eu-west-2.aws.neon.tech/neondb?sslmode=require&channel_binding=require
+postgresql://USER:PASSWORD@HOST:5432/DATABASE
 ```
 
 ### 2. SESSION_SECRET
